@@ -328,7 +328,7 @@ func (s *Service) connectOpenVPN(originalEntryServerInfo *svrConnInfo, connectio
 
 		connectionParams.SetCredentials(prefs.Session.OpenVPNUser, prefs.Session.OpenVPNPass)
 		if svrs, err := s._serversUpdater.GetServers(); err == nil && svrs != nil {
-			connectionParams.SetPki(svrs.Config.OpenVPN.CA, svrs.Config.OpenVPN.TlsAuth)
+			connectionParams.SetPki(svrs.Config.OpenVPN.CA, svrs.Config.OpenVPN.TlsAuth, svrs.Config.OpenVPN.TlsMode)
 		}
 
 		openVpnExtraParameters := ""

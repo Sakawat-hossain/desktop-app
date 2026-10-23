@@ -229,7 +229,8 @@ type ConfigInfo struct {
 // OpenVPNPkiInfo - CA certificate and tls-auth key shared by the panel's OpenVPN servers
 type OpenVPNPkiInfo struct {
 	CA      string `json:"ca"`
-	TlsAuth string `json:"tls_auth"`
+	TlsAuth string `json:"tls_auth"` // the shared static key
+	TlsMode string `json:"tls_mode"` // "tls-crypt" or "tls-auth" (default)
 }
 
 // ServersInfoResponse all info from servers.json

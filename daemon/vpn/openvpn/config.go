@@ -54,6 +54,7 @@ type ConnectionParams struct {
 	// CA certificate and tls-auth key of the panel (from servers.json). When empty, the bundled files are used.
 	caCert     string
 	tlsAuthKey string
+	tlsCrypt   bool // use the key with tls-crypt instead of tls-auth
 }
 
 func (c *ConnectionParams) IsMultihop() bool {
@@ -74,10 +75,12 @@ func (c *ConnectionParams) SetCredentials(username, password string) {
 	c.username = username
 }
 
-// SetPki sets the CA certificate and the tls-auth key (PEM / OpenVPN static key text)
-func (c *ConnectionParams) SetPki(caCert, tlsAuthKey string) {
+// SetPki sets the CA certificate, the shared static key (PEM / OpenVPN static key text)
+// and how the key is used: "tls-crypt" or "tls-auth"
+func (c *ConnectionParams) SetPki(caCert, tlsKey, tlsMode string) {
 	c.caCert = strings.TrimSpace(caCert)
-	c.tlsAuthKey = strings.TrimSpace(tlsAuthKey)
+	c.tlsAuthKey = strings.TrimSpace(tlsKey)
+	c.tlsCrypt = tlsMode == "tls-crypt"
 }
 
 // CreateConnectionParams creates OpenVPN connection parameters object
@@ -240,8 +243,12 @@ func (c *ConnectionParams) generateConfiguration(
 	if len(c.caCert) > 0 && len(c.tlsAuthKey) > 0 {
 		// keys provided by the panel
 		cfg = append(cfg, "<ca>", c.caCert, "</ca>")
-		cfg = append(cfg, "key-direction 1")
-		cfg = append(cfg, "<tls-auth>", c.tlsAuthKey, "</tls-auth>")
+		if c.tlsCrypt {
+			cfg = append(cfg, "<tls-crypt>", c.tlsAuthKey, "</tls-crypt>")
+		} else {
+			cfg = append(cfg, "key-direction 1")
+			cfg = append(cfg, "<tls-auth>", c.tlsAuthKey, "</tls-auth>")
+		}
 	} else {
 		if _, err := os.Stat(platform.OpenvpnCaKeyFile()); os.IsNotExist(err) {
 			return nil, errors.New("CA certificate not found")
