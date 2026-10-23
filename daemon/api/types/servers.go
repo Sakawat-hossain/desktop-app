@@ -223,6 +223,13 @@ type ConfigInfo struct {
 	AntiTrackerPlus AntiTrackerPlusInfo `json:"antitracker_plus"`
 	API             InfoAPI             `json:"api"`
 	Ports           PortsInfo           `json:"ports"`
+	OpenVPN         OpenVPNPkiInfo      `json:"openvpn"`
+}
+
+// OpenVPNPkiInfo - CA certificate and tls-auth key shared by the panel's OpenVPN servers
+type OpenVPNPkiInfo struct {
+	CA      string `json:"ca"`
+	TlsAuth string `json:"tls_auth"`
 }
 
 // ServersInfoResponse all info from servers.json

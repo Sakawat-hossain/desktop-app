@@ -179,8 +179,8 @@ func (c *Client) GetHelloResponse() types.HelloResp {
 }
 
 // SessionNew creates new session
-func (c *Client) SessionNew(accountID string, forceLogin bool, the2FA string) (resp types.SessionNewResp, err error) {
-	req := types.SessionNew{AccountID: accountID, ForceLogin: forceLogin, Confirmation2FA: the2FA}
+func (c *Client) SessionNew(accountID string, password string, forceLogin bool, the2FA string) (resp types.SessionNewResp, err error) {
+	req := types.SessionNew{AccountID: accountID, Password: password, ForceLogin: forceLogin, Confirmation2FA: the2FA}
 
 	if err := c._client.SendRecv(&req, &resp); err != nil {
 		return resp, err

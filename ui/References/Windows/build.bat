@@ -62,19 +62,19 @@ goto :success
 	goto :eof
 
 :build_service
-	echo [*] Building IVPN service and dependencies...
+	echo [*] Building LepidVPN service and dependencies...
 	call "%SERVICE_REPO%\References\Windows\scripts\build-all.bat" %APPVER% %_ARCH% || exit /b 1
 	goto :eof
 
 :build_cli
-	echo [*] Building IVPN CLI...
+	echo [*] Building LepidVPN CLI...
 	echo "%CLI_REPO%\References\Windows\build.bat"
 	call "%CLI_REPO%\References\Windows\build.bat" %APPVER% %_ARCH% || exit /b 1
 	goto :eof
 
 :build_ui
 	echo ==================================================
-	echo ============ BUILDING IVPN UI ====================
+	echo ============ BUILDING LepidVPN UI====================
 	echo ==================================================
 	cd %SCRIPTDIR%\..\..  || exit /b 1
 
@@ -114,8 +114,7 @@ goto :success
 
 	echo     Copying UI '%UI_BINARIES_FOLDER%' ...
 	xcopy /E /I  "%UI_BINARIES_FOLDER%" "%INSTALLER_TMP_DIR%\ui" || exit /b 1
-	echo     Renaming UI binary to 'IVPN Client.exe' ...
-	rename  "%INSTALLER_TMP_DIR%\ui\IVPN.exe" "IVPN Client.exe" || exit /b 1
+	rem the UI binary is already named after productName: LepidVPN.exe
 
 	echo     Copying other files ...
 	set "MANIFEST=%MANIFEST_FILE%"
@@ -194,5 +193,5 @@ goto :success
 :error
 	set ERR=%errorlevel%
 	if %ERR% == 0 set ERR=1
-	echo [!] IVPN Client installer build FAILED with error #%ERR%.
+	echo [!] LepidVPN installer build FAILED with error #%ERR%.
 	endlocal & exit /b %ERR%

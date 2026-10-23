@@ -46,7 +46,7 @@ const getDefaultState = () => {
 
     // VPN
     enableIPv6InTunnel: false,
-    vpnType: VpnTypeEnum.WireGuard,
+    vpnType: VpnTypeEnum.OpenVPN,
     // MTU - According to Windows specification: "... For IPv4 the minimum value is 576 bytes. For IPv6 the minimum is value is 1280 bytes... "
     mtu: null, // (number: [1280-65535]) MTU option is applicable only for WireGuard connections
     isMultiHop: false,

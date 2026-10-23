@@ -222,7 +222,7 @@ function updateWarningMessage() {
       let helperAddon = require('wifi-info-macos');
       let status = helperAddon.AgentGetStatus()
       if (helperAddon.AgentGetStatus() != AGENT_STATUS.Enabled) {                
-        msg = `Error: The IVPN LaunchAgent is not installed or not enabled (status: ${status}).`;
+        msg = `Error: The LepidVPN LaunchAgent is not installed or not enabled (status: ${status}).`;
         console.log("ERROR: (wifi-helper):", msg);
       }
     }

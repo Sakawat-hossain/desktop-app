@@ -14,7 +14,7 @@ set COMMIT=""
 set DATE=""
 
 echo ==================================================
-echo ============ BUILDING IVPN CLI ===================
+echo ============ BUILDING LepidVPN CLI ===================
 echo ==================================================
 
 rem Getting info about current date
@@ -41,10 +41,10 @@ call :build || goto :error
 goto :success
 
 :build
-	echo [*] Building IVPN CLI (%_ARCH%)
+	echo [*] Building LepidVPN CLI (%_ARCH%)
 
-	if exist "bin\x86_64\cli\ivpn.exe" del "bin\x86_64\cli\ivpn.exe" || exit /b 1
-	if exist "bin\arm64\cli\ivpn.exe"  del "bin\arm64\cli\ivpn.exe"  || exit /b 1
+	if exist "bin\x86_64\cli\lepidvpn.exe" del "bin\x86_64\cli\lepidvpn.exe" || exit /b 1
+	if exist "bin\arm64\cli\lepidvpn.exe"  del "bin\arm64\cli\lepidvpn.exe"  || exit /b 1
 
 	set "GOOS=windows"
 
@@ -55,7 +55,7 @@ goto :success
 	)
 
 	echo [ ] %_ARCH% ...
-	go build -tags release -o "bin\%_ARCH%\cli\ivpn.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%DATE%" || exit /b 1
+	go build -tags release -o "bin\%_ARCH%\cli\lepidvpn.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%DATE%" || exit /b 1
 
 	goto :eof
 

@@ -1,2 +1,3 @@
-export const DSN =
-  "https://bdf33f76e775412c8a57388556a8338e@crashes.ivpn.net/6";
+// Diagnostic reports are sent only when a Sentry DSN of our own is set at
+// build time (VITE_SENTRY_DSN); empty disables them.
+export const DSN = import.meta.env.VITE_SENTRY_DSN || "";

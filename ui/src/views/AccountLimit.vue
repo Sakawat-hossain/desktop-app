@@ -5,7 +5,7 @@
         <div class="large_text">Devices limit reached</div>
         <div style="height: 22px"></div>
         <div class="small_text">
-          According to your subscription plan you can use your IVPN account only
+          According to your subscription plan you can use your LepidVPN account only
           on {{ devicesMaxLimit }} devices.
         </div>
 
@@ -60,6 +60,7 @@
 
 <script>
 import { isValidURL } from "@/helpers/helpers";
+import config from "@/config";
 const sender = window.ipcSender;
 
 export default {
@@ -146,13 +147,15 @@ export default {
     onUpgrade: function () {
       if (isValidURL(this.UpgradeToURL))
         sender.shellOpenExternal(this.UpgradeToURL);
-      else sender.shellOpenExternal(`https://www.ivpn.net/account`);
+      else sender.shellOpenExternal(config.URLAccount);
     },
     onContactSupport: function () {
-      sender.shellOpenExternal(`https://www.ivpn.net/contactus`);
+      sender.shellOpenExternal(config.URLAccount);
     },
     onVisitDeviceManagement: function () {
-      sender.shellOpenExternal(this.DeviceManagementURL);
+      if (isValidURL(this.DeviceManagementURL))
+        sender.shellOpenExternal(this.DeviceManagementURL);
+      else sender.shellOpenExternal(config.URLDevices);
     },
   },
 };

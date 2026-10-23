@@ -116,6 +116,7 @@
 <script>
 import spinner from "@/components/controls/control-spinner.vue";
 import { dateDefaultFormat } from "@/helpers/helpers";
+import config from "@/config";
 
 import qrcode from "qrcode-generator";
 
@@ -173,7 +174,7 @@ export default {
       // show dialog ("confirm to logout")
       let needToDisableFirewall = true;
       let needToResetSettings = false;
-      const mes = "Do you really want to log out IVPN account?";
+      const mes = "Do you really want to log out LepidVPN account?";
       const mesResetSettings = "Reset application settings to defaults";
 
       if (isNeedPromptFirewallStatus == true) {
@@ -256,10 +257,10 @@ export default {
       await sender.SessionStatus();
     },
     upgrade() {
-      sender.shellOpenExternal(`https://www.ivpn.net/account`);
+      sender.shellOpenExternal(config.URLAccount);
     },
     addMoreTime() {
-      sender.shellOpenExternal(`https://www.ivpn.net/account`);
+      sender.shellOpenExternal(config.URLAccount);
     },
   },
   computed: {

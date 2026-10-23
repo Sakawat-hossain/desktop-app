@@ -369,7 +369,7 @@ if (gotTheLock && isAllowedToStart) {
           label: "Learn More",
           click: async () => {
             const { shell } = require("electron");
-            await shell.openExternal("https://www.ivpn.net/knowledgebase");
+            await shell.openExternal(config.PanelURL);
           },
         },
       ],
@@ -421,7 +421,7 @@ if (gotTheLock && isAllowedToStart) {
 
         dialog.showMessageBoxSync({
           type: "error",
-          message: "Unable to start IVPN Client",
+          message: "Unable to start LepidVPN",
           detail:
             "IVPN client can only run from the Applications folder. Please move the IVPN.app into the /Applications folder",
           buttons: ["Quit"],
@@ -632,7 +632,7 @@ if (gotTheLock && isAllowedToStart) {
             ) {
               let msgBoxConfig = {
                 type: "question",
-                message: "Subscription is changed to IVPN Standard",
+                message: "Subscription is changed to LepidVPN Standard",
                 detail:
                   "Active VPN connection is using Pro plan features (MultiHop or Port forwarding) and will be disconnected.",
                 buttons: ["OK", "Reconnect with SingleHop VPN"],
@@ -714,7 +714,7 @@ async function isCanQuit() {
         type: "question",
         message: "Deactivate Firewall?",
         detail:
-          "The IVPN Firewall is active.\nDo you want to deactivate it before exiting the application?",
+          "The LepidVPN Firewall is active.\nDo you want to deactivate it before exiting the application?",
         buttons: [
           "Cancel",
           "Keep Firewall activated and Quit",
@@ -847,7 +847,7 @@ function createWindow(doNotShowWhenReady) {
       store.state.settings.showAppInSystemDock !== false ? false : true, // not applicable for Linux (since Electron v20)
 
     center: true,
-    title: "IVPN",
+    title: "LepidVPN",
 
     frame: IsWindowHasFrame(),
     titleBarStyle: "hidden", // applicable only for macOS
@@ -1048,7 +1048,7 @@ function createUpdateWindow() {
     minimizable: false,
 
     center: true,
-    title: "IVPN Update",
+    title: "LepidVPN Update",
 
     autoHideMenuBar: true,
 
@@ -1104,7 +1104,7 @@ async function connectToDaemon() {
       timeout = elapsed < 15 * 1000 ? 500 : 2000;
     }
     _reconnectTimer = setTimeout(() => {
-      console.log("Reconnecting to IVPN Daemon...");
+      console.log("Reconnecting to LepidVPN Daemon...");
       _reconnectTimer = null;
       connectToDaemon();
     }, timeout);

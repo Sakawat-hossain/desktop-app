@@ -63,8 +63,8 @@ type CmdLogin struct {
 }
 
 func (c *CmdLogin) Init() {
-	c.Initialize("login", "Login operation (register ACCOUNT_ID on this device)")
-	c.DefaultStringVar(&c.accountID, "ACCOUNT_ID")
+	c.Initialize("login", "Login operation (register this device for the account EMAIL)")
+	c.DefaultStringVar(&c.accountID, "EMAIL")
 	c.BoolVar(&c.force, "force", false, "Log out from all other devices (applicable only with 'login' option)")
 }
 
@@ -84,16 +84,22 @@ func doLogin(accountID string, force bool) error {
 
 	// login
 	if len(accountID) == 0 {
-		fmt.Print("Enter your Account ID: ")
-		data, err := term.ReadPassword(int(syscall.Stdin))
-		fmt.Println("")
+		fmt.Print("Enter your e-mail: ")
+		email, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("failed to read accountID: %w", err)
+			return fmt.Errorf("failed to read e-mail: %w", err)
 		}
-		accountID = string(data)
+		accountID = strings.TrimSpace(email)
 	}
+	fmt.Print("Enter your password: ")
+	data, err := term.ReadPassword(int(syscall.Stdin))
+	fmt.Println("")
+	if err != nil {
+		return fmt.Errorf("failed to read password: %w", err)
+	}
+	password := string(data)
 
-	resp, err := _proto.SessionNew(accountID, force, "")
+	resp, err := _proto.SessionNew(accountID, password, force, "")
 	if err != nil {
 		if resp.APIStatus == types.The2FARequired {
 			fmt.Println("Account has two-factor authentication enabled.")
@@ -104,7 +110,7 @@ func doLogin(accountID string, force bool) error {
 			topt = strings.TrimSuffix(topt, "\n")
 			topt = strings.TrimSuffix(topt, "\r")
 
-			resp, err = _proto.SessionNew(accountID, force, topt)
+			resp, err = _proto.SessionNew(accountID, password, force, topt)
 		}
 
 		if resp.APIStatus == types.CodeSessionsLimitReached {

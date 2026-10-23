@@ -50,6 +50,10 @@ type ConnectionParams struct {
 	proxyPassword        string
 	proxyAuthFileData    string // required for for obfs4 socks(!) proxy `--socks-proxy server [port] [authfile]`. If this parameter is defined - `proxyUsername` and `proxyPassword`` will be ignored.
 	// (e.g. the obfs4 requires the key to be stored in 'authfile': `cert=E50PjFC...6R7jzP0gYQ;iat-mode=0`)
+
+	// CA certificate and tls-auth key of the panel (from servers.json). When empty, the bundled files are used.
+	caCert     string
+	tlsAuthKey string
 }
 
 func (c *ConnectionParams) IsMultihop() bool {
@@ -68,6 +72,12 @@ func (c *ConnectionParams) GetHostIp() net.IP {
 func (c *ConnectionParams) SetCredentials(username, password string) {
 	c.password = password
 	c.username = username
+}
+
+// SetPki sets the CA certificate and the tls-auth key (PEM / OpenVPN static key text)
+func (c *ConnectionParams) SetPki(caCert, tlsAuthKey string) {
+	c.caCert = strings.TrimSpace(caCert)
+	c.tlsAuthKey = strings.TrimSpace(tlsAuthKey)
 }
 
 // CreateConnectionParams creates OpenVPN connection parameters object
@@ -227,15 +237,22 @@ func (c *ConnectionParams) generateConfiguration(
 	}
 	cfg = append(cfg, "persist-key")
 
-	if _, err := os.Stat(platform.OpenvpnCaKeyFile()); os.IsNotExist(err) {
-		return nil, errors.New("CA certificate not found")
-	}
-	cfg = append(cfg, fmt.Sprintf("ca \"%s\"", platform.OpenvpnCaKeyFile()))
+	if len(c.caCert) > 0 && len(c.tlsAuthKey) > 0 {
+		// keys provided by the panel
+		cfg = append(cfg, "<ca>", c.caCert, "</ca>")
+		cfg = append(cfg, "key-direction 1")
+		cfg = append(cfg, "<tls-auth>", c.tlsAuthKey, "</tls-auth>")
+	} else {
+		if _, err := os.Stat(platform.OpenvpnCaKeyFile()); os.IsNotExist(err) {
+			return nil, errors.New("CA certificate not found")
+		}
+		cfg = append(cfg, fmt.Sprintf("ca \"%s\"", platform.OpenvpnCaKeyFile()))
 
-	if _, err := os.Stat(platform.OpenvpnTaKeyFile()); os.IsNotExist(err) {
-		return nil, errors.New("TLS auth key not found")
+		if _, err := os.Stat(platform.OpenvpnTaKeyFile()); os.IsNotExist(err) {
+			return nil, errors.New("TLS auth key not found")
+		}
+		cfg = append(cfg, fmt.Sprintf("tls-auth \"%s\" 1", platform.OpenvpnTaKeyFile()))
 	}
-	cfg = append(cfg, fmt.Sprintf("tls-auth \"%s\" 1", platform.OpenvpnTaKeyFile()))
 
 	cfg = append(cfg, "cipher AES-256-CBC")
 	cfg = append(cfg, "remote-cert-tls server")

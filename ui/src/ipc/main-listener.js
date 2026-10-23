@@ -52,9 +52,18 @@ ipcMain.handle("renderer-request-refresh-storage", async () => {
 
 ipcMain.handle(
   "renderer-request-login",
-  async (event, accountID, force, captchaID, captcha, confirmation2FA) => {
+  async (
+    event,
+    accountID,
+    password,
+    force,
+    captchaID,
+    captcha,
+    confirmation2FA
+  ) => {
     return await client.Login(
       accountID,
+      password,
       force,
       captchaID,
       captcha,

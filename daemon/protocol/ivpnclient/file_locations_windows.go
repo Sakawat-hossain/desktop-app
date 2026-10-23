@@ -21,7 +21,7 @@ func getPortFileBaseDir() (baseDir string, err error) {
 
 // winInstallFolder reads the IVPN installation directory from the Windows registry.
 func winInstallFolder() (string, error) {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `Software\IVPN Client`, registry.QUERY_VALUE)
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `Software\LepidVPN`, registry.QUERY_VALUE)
 	if err != nil {
 		return "", fmt.Errorf("opening registry key: %w", err)
 	}

@@ -36,7 +36,7 @@ import (
 
 // initialize all constant values (e.g. servicePortFile) which can be used in external projects (IVPN CLI)
 func doInitConstantsForBuild() {
-	servicePortFile = `C:/Program Files/IVPN Client/etc/port.txt`
+	servicePortFile = `C:/Program Files/LepidVPN/etc/port.txt`
 	if err := os.MkdirAll(filepath.Dir(servicePortFile), os.ModePerm); err != nil {
 		fmt.Printf("!!! DEBUG VERSION !!! ERROR	: '%s'\n", servicePortFile)
 		servicePortFile = ""

@@ -163,10 +163,10 @@
       <ComponentDialog ref="helpAutoconnectOnLaunchDaemon" header="Info">
         <div>
           <p>
-            By enabling this feature the IVPN daemon will manage the
+            By enabling this feature the LepidVPN daemon will manage the
             auto-connection function. This enables the VPN tunnel to startup as
             quickly as possible as the daemon is started early in the operating
-            system boot process and before the IVPN app (The GUI).
+            system boot process and before the LepidVPN app (The GUI).
           </p>
         </div>
       </ComponentDialog>

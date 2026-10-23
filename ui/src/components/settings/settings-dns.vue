@@ -32,11 +32,11 @@
           <ComponentDialog ref="helpForceResolveConf" header="Info">
             <div>
               <p>
-                By default IVPN manages DNS resolvers using the 'systemd-resolved'
+                By default LepidVPN manages DNS resolvers using the 'systemd-resolved'
                 daemon which is the correct method for systems based on Systemd.
                 </p>
                 <p>
-                This option enables you to override this behavior and allow the IVPN app to
+                This option enables you to override this behavior and allow the LepidVPN app to
                 directly modify the '/etc/resolv.conf' file.
               </p>
             </div>
@@ -47,7 +47,7 @@
     <div class="param" tabindex="0" style="margin-bottom: 4px;">
       <input type="checkbox" id="dnsIsCustom" v-model="_dnsIsCustom" @input="isDnsValueChanged = true"/>
       <label class="defColor" for="dnsIsCustom"
-          >Use custom DNS server when connected to IVPN</label
+          >Use custom DNS server when connected to LepidVPN</label
       >
           <button
             class="noBordersBtn flexRow"
@@ -59,7 +59,7 @@
           <ComponentDialog ref="helpCustomDns" header="Custom DNS information">
             <div>
               <p>
-                You can specify one or more custom DNS servers to be used when connected to IVPN.
+                You can specify one or more custom DNS servers to be used when connected to LepidVPN.
                 When multiple DNS servers are specified, the servers will be registered in the order you defined, 
                 but your operating system may select a resolver based on its own logic.
               </p>
@@ -283,8 +283,8 @@ export default {
       sender.showMessageBoxSync({
         type: "info",
         buttons: ["OK"],
-        message: "You are now connected to IVPN",
-        detail: "You can change this settings only when IVPN is disconnected.",
+        message: "You are now connected to LepidVPN",
+        detail: "You can change this settings only when LepidVPN is disconnected.",
       });
 
       return false;

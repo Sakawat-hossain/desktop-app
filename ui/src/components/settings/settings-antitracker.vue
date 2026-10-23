@@ -11,10 +11,10 @@
     </template>
 
     <div class="defColor" style="margin-bottom: 24px" tabindex="0">
-      When AntiTracker is enabled, IVPN blocks ads, malicious websites, and
+      When AntiTracker is enabled, LepidVPN blocks ads, malicious websites, and
       third-party trackers using our private DNS servers.
       <linkCtrl label="Learn more" url="https://www.ivpn.net/antitracker" />
-      about how IVPN AntiTracker is implemented.
+      about how LepidVPN AntiTracker is implemented.
     </div>
 
     <div class="flexRow paramBlock" style="margin-bottom: 12px" tabindex="0">

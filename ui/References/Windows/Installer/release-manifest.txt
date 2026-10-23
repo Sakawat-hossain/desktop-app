@@ -1,4 +1,4 @@
-; IVPN Windows Release Manifest
+; LepidVPN Windows Release Manifest
 ; Used by build.bat to stage files into the installer temp directory.
 ;
 ; Format: DEST[=SOURCE]
@@ -19,8 +19,8 @@ icon.ico                                           = ui\References\Windows\Insta
 ; -------------------------------------------------------------------------
 ; Go-compiled binaries (produced by build_service / build_cli steps)
 ; -------------------------------------------------------------------------
-IVPN Service.exe                                   = daemon\bin\{ARCH}\IVPN Service.exe
-cli\ivpn.exe                                       = cli\bin\{ARCH}\cli\ivpn.exe
+LepidVPN Service.exe                               = daemon\bin\{ARCH}\LepidVPN Service.exe
+cli\lepidvpn.exe                                   = cli\bin\{ARCH}\cli\lepidvpn.exe
 
 ; -------------------------------------------------------------------------
 ; Native C++ DLLs (VS output dirs use x64 / ARM64 naming)

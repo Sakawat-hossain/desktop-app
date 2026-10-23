@@ -124,9 +124,7 @@ func (s *serversUpdater) updateServers() (*types.ServersInfoResponse, error) {
 	if len(servers.Config.Ports.OpenVPN) <= 0 {
 		return servers, fmt.Errorf("no ports info for OpenVPN in servers.json; skipping received data from backend")
 	}
-	if len(servers.Config.Ports.WireGuard) <= 0 {
-		return servers, fmt.Errorf("no ports info for WireGuard in servers.json; skipping received data from backend")
-	}
+	// WireGuard ports are optional: the panel serves OpenVPN servers only for now
 
 	log.Info(fmt.Sprintf("Updated servers info (%d OpenVPN; %d WireGuard)\n", len(servers.OpenvpnServers), len(servers.WireguardServers)))
 
