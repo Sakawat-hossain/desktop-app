@@ -586,7 +586,7 @@ async function processResponse(response) {
           await messageBox({
             type: "error",
             buttons: ["OK"],
-            message: `IVPN daemon notifies of an error that occurred earlier`,
+            message: `LepidVPN daemon notifies of an error that occurred earlier`,
             detail: obj.ErrorMessage,
           });
         }, 3000);
@@ -826,14 +826,14 @@ async function ConnectToDaemon(onDisconnected, onDaemonExitingCallback) {
     portInfo = { port: parsed[0], secret: parsed[1] };
   } catch (e) {
     log.error(
-      `DAEMON CONNECTION ERROR: Unable to obtain IVPN daemon connection parameters: ${e}`
+      `DAEMON CONNECTION ERROR: Unable to obtain LepidVPN daemon connection parameters: ${e}`
     );
     throw e;
   }
 
   return new Promise((resolve, reject) => {
     if (!portInfo) {
-      reject("IVPN daemon connection info is unknown.");
+      reject("LepidVPN daemon connection info is unknown.");
       return;
     }
 
@@ -878,7 +878,7 @@ async function ConnectToDaemon(onDisconnected, onDaemonExitingCallback) {
           // the 'store.state.daemonVersion' and 'store.state.daemonIsOldVersionError' must be already initialized
           if (store.state.daemonIsOldVersionError === true) {
             const err = Error(
-              `Unsupported IVPN Daemon version: v${store.state.daemonVersion} (minimum required v${config.MinRequiredDaemonVer})`
+              `Unsupported LepidVPN Daemon version: v${store.state.daemonVersion} (minimum required v${config.MinRequiredDaemonVer})`
             );
             err.unsupportedDaemonVersion = true;
             disconnectDaemonFunc(err); // REJECT

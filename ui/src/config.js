@@ -48,7 +48,7 @@ export default {
 
   // shellOpenExternal(...) allows only URLs started with this prefix
   URLsAllowedPrefixes: [PanelURL, "x-apple.systempreferences:"],
-  URLApps: "https://www.ivpn.net/apps/",
+  URLApps: PanelURL,
 
   IsDebug,
   GetResourcesPath,

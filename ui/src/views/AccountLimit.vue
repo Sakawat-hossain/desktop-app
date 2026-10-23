@@ -5,7 +5,7 @@
         <div class="large_text">Devices limit reached</div>
         <div style="height: 22px"></div>
         <div class="small_text">
-          According to your subscription plan you can use your IVPN account only
+          According to your subscription plan you can use your LepidVPN account only
           on {{ devicesMaxLimit }} devices.
         </div>
 

@@ -46,7 +46,7 @@ exit /b 0
     if exist "%_REF%\WireGuard\%_A%\wireguard.exe"            del /f /q "%_REF%\WireGuard\%_A%\wireguard.exe"
     if exist "%_REF%\dnscrypt-proxy\%_A%\dnscrypt-proxy.exe"  del /f /q "%_REF%\dnscrypt-proxy\%_A%\dnscrypt-proxy.exe"
     if exist "%_REF%\kem\%_A%\kem-helper.exe"                 del /f /q "%_REF%\kem\%_A%\kem-helper.exe"
-    if exist "%_REF%\..\bin\%_A%\IVPN Service.exe"            del /f /q "%_REF%\..\bin\%_A%\IVPN Service.exe"
+    if exist "%_REF%\..\bin\%_A%\LepidVPN Service.exe"            del /f /q "%_REF%\..\bin\%_A%\LepidVPN Service.exe"
 
     rem Native DLL build outputs: shared bin dir and per-project intermediate dirs
     set "_NATIVE=%_REF%\Native Projects"

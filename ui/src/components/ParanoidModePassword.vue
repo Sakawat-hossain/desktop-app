@@ -33,13 +33,14 @@
         class="noBordersTextBtn settingsLinkText"
         v-on:click="visitWebsite"
       >
-        www.ivpn.net
+        LepidVPN
       </button>-->
     </div>
   </div>
 </template>
 
 <script>
+import config from "@/config";
 const sender = window.ipcSender;
 
 export default {
@@ -89,7 +90,7 @@ export default {
       }
     },
     visitWebsite() {
-      sender.shellOpenExternal(`https://www.ivpn.net`);
+      sender.shellOpenExternal(config.PanelURL);
     },
   },
   computed: {},

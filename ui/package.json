@@ -2,7 +2,7 @@
   "name": "ivpn-ui",
   "version": "3.16.1",
   "productName": "IVPN",
-  "description": "IVPN Client",
+  "description": "LepidVPN",
   "author": "IVPN Limited",
   "license": "GPL-3.0",
   "private": true,

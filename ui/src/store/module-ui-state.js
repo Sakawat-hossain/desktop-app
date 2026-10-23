@@ -67,7 +67,7 @@ export default {
       if (!extState || !rootState.vpnState.splitTunnelling?.IsEnabled) return "";
       switch (extState.extensionState) {
         case SplitTunnelMacExtStateEnum.NeedsUserApproval:
-          return "Split Tunnel is enabled but not active yet. Approve the IVPN system extension in System Settings; it starts automatically once approved.";
+          return "Split Tunnel is enabled but not active yet. Approve the LepidVPN system extension in System Settings; it starts automatically once approved.";
         case SplitTunnelMacExtStateEnum.Disabled:
           return "The Split Tunnel system extension is switched off. Enable it in System Settings to use Split Tunnel.";
         case SplitTunnelMacExtStateEnum.NeedsReboot:

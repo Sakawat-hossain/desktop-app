@@ -123,11 +123,11 @@ goto :success
 	if not "%PANEL_CERT_HASHES%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelCertHashes=%PANEL_CERT_HASHES%"
 
 	echo [*] Building IVPN service (%_TARGET_ARCH%) ...
-	if exist "bin\%_TARGET_ARCH%\IVPN Service.exe" del "bin\%_TARGET_ARCH%\IVPN Service.exe" || exit /b 1
+	if exist "bin\%_TARGET_ARCH%\LepidVPN Service.exe" del "bin\%_TARGET_ARCH%\LepidVPN Service.exe" || exit /b 1
 
-	go build -tags release -o "bin\%_TARGET_ARCH%\IVPN Service.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%BUILD_DATE%%PANEL_LDFLAGS%" || exit /b 1
+	go build -tags release -o "bin\%_TARGET_ARCH%\LepidVPN Service.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%BUILD_DATE%%PANEL_LDFLAGS%" || exit /b 1
 
-	echo Compiled binary: "bin\%_TARGET_ARCH%\IVPN Service.exe"
+	echo Compiled binary: "bin\%_TARGET_ARCH%\LepidVPN Service.exe"
 	goto :eof
 
 :build_native_libs

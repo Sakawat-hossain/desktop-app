@@ -324,7 +324,7 @@ if ($Signing) {
 $prevLocation = Get-Location
 Set-Location $InstallerNsiDir
 try {
-    & $MAKENSIS @nsisArgs "IVPN Client.nsi"
+    & $MAKENSIS @nsisArgs "LepidVPN.nsi"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[!] NSIS failed (exit code $LASTEXITCODE)."; exit $LASTEXITCODE
     }

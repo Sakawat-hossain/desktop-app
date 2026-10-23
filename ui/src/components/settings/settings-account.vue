@@ -174,7 +174,7 @@ export default {
       // show dialog ("confirm to logout")
       let needToDisableFirewall = true;
       let needToResetSettings = false;
-      const mes = "Do you really want to log out IVPN account?";
+      const mes = "Do you really want to log out LepidVPN account?";
       const mesResetSettings = "Reset application settings to defaults";
 
       if (isNeedPromptFirewallStatus == true) {

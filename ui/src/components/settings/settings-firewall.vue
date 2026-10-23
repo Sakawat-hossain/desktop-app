@@ -17,7 +17,7 @@
         <label class="defColor" for="onDemand">On-demand</label>
       </div>
       <div class="fwDescription" tabindex="0">
-        When this option is enabled the IVPN Firewall can be either manually
+        When this option is enabled the LepidVPN Firewall can be either manually
         activated or automatically activated when the VPN connection is
         established - see On-demand Firewall options below
       </div>
@@ -35,9 +35,9 @@
           <label class="defColor" for="alwaysOn">Always-on firewall</label>
         </div>
         <div class="fwDescription" tabindex="0">
-          When the option is enabled the IVPN Firewall is started during system
-          boot time before any other process. IVPN Firewall will always be
-          active even when IVPN Client is not running
+          When the option is enabled the LepidVPN Firewall is started during system
+          boot time before any other process. LepidVPN Firewall will always be
+          active even when LepidVPN is not running
         </div>
       </div>
     </div>
@@ -49,7 +49,7 @@
         v-model="firewallAllowApiServers"
       />
       <label class="defColor" for="firewallAllowApiServers"
-        >Allow access to IVPN servers when Firewall is enabled</label
+        >Allow access to LepidVPN servers when Firewall is enabled</label
       >
     </div>
 
@@ -64,7 +64,7 @@
         v-model="firewallActivateOnConnect"
       />
       <label class="defColor" for="firewallActivateOnConnect"
-        >Activate IVPN Firewall on connect to VPN</label
+        >Activate LepidVPN Firewall on connect to VPN</label
       >
     </div>
     <div class="param" tabindex="0">
@@ -75,7 +75,7 @@
         v-model="firewallDeactivateOnDisconnect"
       />
       <label class="defColor" for="firewallDeactivateOnDisconnect"
-        >Deactivate IVPN Firewall on disconnect from VPN</label
+        >Deactivate LepidVPN Firewall on disconnect from VPN</label
       >
     </div>
 
@@ -112,7 +112,7 @@
             v-model="firewallAllowLan"
           />
           <label class="defColor" for="firewallAllowLan"
-            >Allow LAN traffic when IVPN Firewall is enabled</label
+            >Allow LAN traffic when LepidVPN Firewall is enabled</label
           >
 
           <button

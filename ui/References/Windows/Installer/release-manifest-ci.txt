@@ -1,4 +1,4 @@
-; IVPN Windows CI Build Test Manifest
+; LepidVPN Windows CI Build Test Manifest
 ; Minimal file set used in GitHub Actions CI builds.
 ; Skips files that require full native compilation (native DLLs, full OpenVPN stack).
 ; Same format as release-manifest.txt.
@@ -7,8 +7,8 @@
 ; Common to all architectures
 ; -------------------------------------------------------------------------
 icon.ico                                           = ui\References\Windows\Installer\icon.ico
-IVPN Service.exe                                   = daemon\bin\{ARCH}\IVPN Service.exe
-cli\ivpn.exe                                       = cli\bin\{ARCH}\cli\ivpn.exe
+LepidVPN Service.exe                               = daemon\bin\{ARCH}\LepidVPN Service.exe
+cli\lepidvpn.exe                                   = cli\bin\{ARCH}\cli\lepidvpn.exe
 etc\ca.crt                                         = daemon\References\common\etc\ca.crt
 etc\servers.json                                   = daemon\References\common\etc\servers.json
 etc\ta.key                                         = daemon\References\common\etc\ta.key

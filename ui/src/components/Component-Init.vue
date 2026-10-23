@@ -3,7 +3,7 @@
     <spinner :loading="spinnerVisible" />
 
     <div class="main" v-if="isDaemonInstalling">
-      Installing IVPN Daemon ...
+      Installing LepidVPN Daemon ...
       <div class="small_text" style="margin-top: 10px">
         Please follow the instructions in the dialog
       </div>
@@ -13,10 +13,10 @@
 
     <div v-else class="flexColumn">
       <div class="main">
-        <div class="large_text">Error connecting to IVPN daemon</div>
+        <div class="large_text">Error connecting to LepidVPN daemon</div>
         <div v-if="daemonIsOldVersionError">
           <div class="small_text">
-            Unsupported IVPN daemon version v{{ currDaemonVer }} (minimum
+            Unsupported LepidVPN daemon version v{{ currDaemonVer }} (minimum
             required v{{ minRequiredVer }}).
           </div>
           <div class="small_text">
@@ -25,29 +25,29 @@
               class="noBordersTextBtn settingsLinkText"
               v-on:click="visitWebsiteAppsPage"
             >
-              IVPN website</button
+              LepidVPN website</button
             >.
           </div>
         </div>
         <div v-else>
           <div class="small_text">
-            Not connected to daemon. Please, ensure IVPN daemon is running and
+            Not connected to daemon. Please, ensure LepidVPN daemon is running and
             try to reconnect.
           </div>
           <div v-if="isMacOS" class="small_text">
-            Ensure that the <span>'IVPN'</span> background item is enabled in
+            Ensure that the <span>'LepidVPN'</span> background item is enabled in
             your system settings. If it's not enabled, please turn it on and
             then reboot your system. (<span
               >General -> Login Items -> Allow in the Background</span
             >)
           </div>
           <div class="small_text">
-            The latest version of the IVPN software can be downloaded from the
+            The latest version of the LepidVPN software can be downloaded from the
             <button
               class="noBordersTextBtn settingsLinkText"
               v-on:click="visitWebsiteAppsPage"
             >
-              IVPN website</button
+              LepidVPN website</button
             >.
           </div>
         </div>
@@ -57,7 +57,7 @@
         class="noBordersTextBtn settingsLinkText"
         v-on:click="visitWebsite"
       >
-        www.ivpn.net
+        {{ panelHost }}
       </button>
     </div>
   </div>
@@ -86,13 +86,16 @@ export default {
       }
     },
     visitWebsite() {
-      sender.shellOpenExternal(`https://www.ivpn.net`);
+      sender.shellOpenExternal(config.PanelURL);
     },
     visitWebsiteAppsPage() {
-      sender.shellOpenExternal(`https://www.ivpn.net/apps/`);
+      sender.shellOpenExternal(config.URLApps);
     },
   },
   computed: {
+    panelHost: function () {
+      return config.PanelURL.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    },
     isDaemonInstalling: function () {
       return this.$store.state.daemonIsInstalling;
     },
