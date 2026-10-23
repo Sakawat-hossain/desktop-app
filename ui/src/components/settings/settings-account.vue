@@ -116,6 +116,7 @@
 <script>
 import spinner from "@/components/controls/control-spinner.vue";
 import { dateDefaultFormat } from "@/helpers/helpers";
+import config from "@/config";
 
 import qrcode from "qrcode-generator";
 
@@ -256,10 +257,10 @@ export default {
       await sender.SessionStatus();
     },
     upgrade() {
-      sender.shellOpenExternal(`https://www.ivpn.net/account`);
+      sender.shellOpenExternal(config.URLAccount);
     },
     addMoreTime() {
-      sender.shellOpenExternal(`https://www.ivpn.net/account`);
+      sender.shellOpenExternal(config.URLAccount);
     },
   },
   computed: {

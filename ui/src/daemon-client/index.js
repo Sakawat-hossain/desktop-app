@@ -944,10 +944,18 @@ async function ConnectToDaemon(onDisconnected, onDaemonExitingCallback) {
   });
 }
 
-async function Login(accountID, force, captchaID, captcha, confirmation2FA) {
+async function Login(
+  accountID,
+  password,
+  force,
+  captchaID,
+  captcha,
+  confirmation2FA
+) {
   let resp = await sendRecv({
     Command: daemonRequests.SessionNew,
     AccountID: accountID,
+    Password: password,
     ForceLogin: force,
     CaptchaID: captchaID,
     Captcha: captcha,

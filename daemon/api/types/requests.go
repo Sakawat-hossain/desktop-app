@@ -32,6 +32,7 @@ type KemPublicKeys struct {
 // SessionNewRequest request to create new session
 type SessionNewRequest struct {
 	AccountID  string `json:"username"`
+	Password   string `json:"password"`
 	ForceLogin bool   `json:"force"`
 
 	PublicKey string `json:"wg_public_key"`

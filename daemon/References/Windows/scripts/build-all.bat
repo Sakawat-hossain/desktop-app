@@ -115,10 +115,17 @@ goto :success
 		set "CC="
 	)
 
+	rem Panel connection (see docs/PANEL.md): PANEL_HOST, PANEL_SCHEME, PANEL_APP_KEY, PANEL_CERT_HASHES
+	set "PANEL_LDFLAGS="
+	if not "%PANEL_HOST%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelHost=%PANEL_HOST%"
+	if not "%PANEL_SCHEME%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelScheme=%PANEL_SCHEME%"
+	if not "%PANEL_APP_KEY%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelAppKey=%PANEL_APP_KEY%"
+	if not "%PANEL_CERT_HASHES%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelCertHashes=%PANEL_CERT_HASHES%"
+
 	echo [*] Building IVPN service (%_TARGET_ARCH%) ...
 	if exist "bin\%_TARGET_ARCH%\IVPN Service.exe" del "bin\%_TARGET_ARCH%\IVPN Service.exe" || exit /b 1
 
-	go build -tags release -o "bin\%_TARGET_ARCH%\IVPN Service.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%BUILD_DATE%" || exit /b 1
+	go build -tags release -o "bin\%_TARGET_ARCH%\IVPN Service.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%BUILD_DATE%%PANEL_LDFLAGS%" || exit /b 1
 
 	echo Compiled binary: "bin\%_TARGET_ARCH%\IVPN Service.exe"
 	goto :eof

@@ -41,14 +41,20 @@ import (
 )
 
 func getURL(host string, urlpath string) string {
-	return "https://" + path.Join(host, urlpath)
+	if host == _updateHost {
+		return "https://" + path.Join(UpdateHost, urlpath)
+	}
+	return panelScheme() + "://" + path.Join(PanelHost, PanelPathPrefix, urlpath)
 }
 
 func getURL_IPHost(ip net.IP, isIPv6 bool, urlpath string) string {
-	if isIPv6 {
-		return "https://" + path.Join("["+ip.String()+"]", urlpath)
+	host := ip.String()
+	if port := panelPort(); port != "" {
+		host = net.JoinHostPort(host, port)
+	} else if isIPv6 {
+		host = "[" + host + "]"
 	}
-	return "https://" + path.Join(ip.String(), urlpath)
+	return panelScheme() + "://" + path.Join(host, PanelPathPrefix, urlpath)
 }
 
 func newRequest(urlPath string, method string, contentType string, body io.Reader) (*http.Request, error) {
@@ -63,6 +69,9 @@ func newRequest(urlPath string, method string, contentType string, body io.Reade
 
 	if len(contentType) > 0 {
 		req.Header.Add("Content-type", contentType)
+	}
+	if len(PanelAppKey) > 0 && req.URL.Host != UpdateHost {
+		req.Header.Add("x-api-key", PanelAppKey)
 	}
 
 	return req, nil
@@ -81,7 +90,7 @@ type dialer func(network, addr string) (net.Conn, error)
 
 func makeDialer(certHashes []string, serverName string, dialTimeout time.Duration) dialer {
 	if len(certHashes) == 0 {
-		log.Warning("No pinned certificates for ", _apiHost)
+		// no pinning: regular TLS validation against the system CAs
 		return nil
 	}
 
@@ -175,14 +184,14 @@ func (a *API) doRequest(ipTypeRequired types.RequiredIPProtocol, host string, ur
 }
 
 func (a *API) doRequestUpdateHost(urlPath string, method string, contentType string, request interface{}, timeoutMs int) (resp *http.Response, err error) {
+	if len(UpdateHost) == 0 {
+		return nil, fmt.Errorf("update checks are disabled")
+	}
 	transCfg := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12, // seems, it is redundant (since we use custom DialTLS)
-			ServerName: _updateHost,      // despite, we using custom DialTLS, we have to define ServerName (this avoids certificate verification problems, for example, when the request is going through a proxy server)
+			MinVersion: tls.VersionTLS12,
+			ServerName: UpdateHost,
 		},
-
-		// using certificate key pinning
-		DialTLS: makeDialer(UpdateIvpnHashes, _updateHost, 0),
 	}
 
 	// configure http-client with preconfigured TLS transport
@@ -210,8 +219,8 @@ func (a *API) doRequestUpdateHost(urlPath string, method string, contentType str
 
 	resp, e := client.Do(req)
 	if e != nil {
-		log.Warning("Failed to access " + _updateHost)
-		return resp, fmt.Errorf("unable to access IVPN repo server: %w", e)
+		log.Warning("Failed to access " + UpdateHost)
+		return resp, fmt.Errorf("unable to access update server: %w", e)
 	}
 
 	return resp, nil
@@ -235,16 +244,17 @@ func (a *API) doRequestAPIHost(ipTypeRequired types.RequiredIPProtocol, isCanUse
 	}
 
 	// When trying to access API server by alternate IPs (not by DNS name)
-	// we need to configure TLS to use api.ivpn.net hostname
+	// we need to configure TLS to use the panel hostname
 	// (to avoid certificate errors)
 	transCfg := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12, // seems, it is redundant (since we use custom DialTLS)
-			ServerName: _apiHost,         // despite, we using custom DialTLS, we have to define ServerName (this avoids certificate verification problems, for example, when the request is going through a proxy server)
+			MinVersion: tls.VersionTLS12,
+			ServerName: panelHostName(),
 		},
+		DialContext: (&net.Dialer{Timeout: timeoutDial}).DialContext,
 
-		// using certificate key pinning
-		DialTLS: makeDialer(APIIvpnHashes, _apiHost, timeoutDial),
+		// certificate key pinning (only when PanelCertHashes is defined)
+		DialTLS: makeDialer(panelCertHashes(), panelHostName(), timeoutDial),
 	}
 
 	// configure http-client with preconfigured TLS transport
@@ -286,7 +296,7 @@ func (a *API) doRequestAPIHost(ipTypeRequired types.RequiredIPProtocol, isCanUse
 		if firstErr == nil {
 			return firstResp, firstErr
 		}
-		log.Warning("Failed to access " + _apiHost)
+		log.Warning("Failed to access " + PanelHost)
 	}
 
 	isLogNotificationPrinted := false
@@ -327,7 +337,7 @@ func (a *API) doRequestAPIHost(ipTypeRequired types.RequiredIPProtocol, isCanUse
 		return resp, err
 	}
 
-	return nil, fmt.Errorf("unable to access IVPN API server: %w", firstErr)
+	return nil, fmt.Errorf("unable to access API server: %w", firstErr)
 }
 
 func (a *API) requestRaw(ipTypeRequired types.RequiredIPProtocol, host string, urlPath string, method string, contentType string, requestObject interface{}, timeoutMs int, timeoutDialMs int) (responseData []byte, httpResp *http.Response, err error) {

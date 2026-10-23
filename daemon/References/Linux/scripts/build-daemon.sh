@@ -70,7 +70,14 @@ if [ ! -z "$IVPN_NO_WIFI" ]; then
   BUILDTAG_NOWIFI="nowifi"
 fi
 
-GOARCH=$ARCH_TARGET CGO_ENABLED=0 go build -buildmode=pie -tags "${BUILDTAG_DEBUG} ${BUILDTAG_NOWIFI}" -o "$OUT_FILE" -trimpath -ldflags "-X github.com/ivpn/desktop-app/daemon/version._version=$VERSION -X github.com/ivpn/desktop-app/daemon/version._commit=$COMMIT -X github.com/ivpn/desktop-app/daemon/version._time=$DATE"
+# Panel connection (see docs/PANEL.md)
+PANEL_LDFLAGS=""
+[ -n "$PANEL_HOST" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelHost=$PANEL_HOST"
+[ -n "$PANEL_SCHEME" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelScheme=$PANEL_SCHEME"
+[ -n "$PANEL_APP_KEY" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelAppKey=$PANEL_APP_KEY"
+[ -n "$PANEL_CERT_HASHES" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelCertHashes=$PANEL_CERT_HASHES"
+
+GOARCH=$ARCH_TARGET CGO_ENABLED=0 go build -buildmode=pie -tags "${BUILDTAG_DEBUG} ${BUILDTAG_NOWIFI}" -o "$OUT_FILE" -trimpath -ldflags "-X github.com/ivpn/desktop-app/daemon/version._version=$VERSION -X github.com/ivpn/desktop-app/daemon/version._commit=$COMMIT -X github.com/ivpn/desktop-app/daemon/version._time=$DATE${PANEL_LDFLAGS}"
 
 echo "Compiled binary: '$OUT_FILE'"
 

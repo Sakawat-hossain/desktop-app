@@ -51,9 +51,9 @@
           />
         </div>
         <div v-else>
-          <!-- ACCOUNT ID -->
+          <!-- E-MAIL + PASSWORD -->
           <div class="centered">
-            <div class="large_text">Enter your Account ID</div>
+            <div class="large_text">Log in to your account</div>
             <div style="height: 12px" />
           </div>
 
@@ -62,9 +62,20 @@
           <input
             class="styledBig"
             ref="accountid"
-            style="text-align: center"
-            placeholder="i-XXXX-... or ivpnXXXXXXXX"
+            type="email"
+            autocomplete="username"
+            placeholder="E-mail"
             v-model="accountID"
+            v-on:keyup="keyup($event)"
+          />
+          <div style="height: 12px" />
+          <input
+            class="styledBig"
+            ref="password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Password"
+            v-model="password"
             v-on:keyup="keyup($event)"
           />
         </div>
@@ -108,6 +119,7 @@ import SwitchProgress from "@/components/controls/control-switch-small2.vue";
 
 import { IsOsDarkColorScheme } from "@/helpers/renderer";
 import { ColorTheme } from "@/store/types";
+import config from "@/config";
 
 const sender = window.ipcSender;
 import {
@@ -144,6 +156,7 @@ export default {
       firewallIsProgress: false,
 
       accountID: "",
+      password: "",
       isProcessing: false,
 
       rawResponse: null,
@@ -174,6 +187,7 @@ export default {
       let confirmation2FA = null;
       if (stateParams.extraArgs) {
         confirmation2FA = stateParams.extraArgs.confirmation2FA;
+        this.password = stateParams.extraArgs.password || "";
       }
 
       const force = true;
@@ -194,13 +208,10 @@ export default {
   methods: {
     async Login(isForceLogout, confirmation2FA) {
       try {
-        // check accountID
-        var pattern = new RegExp("^(i-....-....-....)|(ivpn[a-zA-Z0-9]{7,8})$"); // fragment locator
+        // check credentials
         if (this.accountID) this.accountID = this.accountID.trim();
-        if (pattern.test(this.accountID) !== true) {
-          throw new Error(
-            "Your account ID has to be in 'i-XXXX-XXXX-XXXX' or 'ivpnXXXXXXXX' format. You can find it on other devices where you are logged in and in the client area of the IVPN website.",
-          );
+        if (!this.accountID || !this.password) {
+          throw new Error("Please enter your e-mail and password.");
         }
 
         if (this.is2FATokenRequired && !this.confirmation2FA) {
@@ -216,6 +227,7 @@ export default {
         this.isProcessing = true;
         const resp = await sender.Login(
           this.accountID,
+          this.password,
           isForceLogout === true || this.isForceLogoutRequested === true
             ? true
             : false,
@@ -263,12 +275,14 @@ export default {
                   DeviceManagementURL: resp.Account.DeviceManagementURL,
                   extraArgs: {
                     confirmation2FA: oldConfirmation2FA,
+                    password: this.password,
                   },
                 },
               },
             });
           } else throw new Error(`[${resp.APIStatus}] ${resp.APIErrorMessage}`);
         } else {
+          this.password = "";
           try {
             await sender.GeoLookup();
           } catch (e) {
@@ -288,7 +302,7 @@ export default {
       }
     },
     CreateAccount() {
-      sender.shellOpenExternal(`https://www.ivpn.net/signup`);
+      sender.shellOpenExternal(config.URLSignUp);
     },
     Cancel() {
       this.rawResponse = null;

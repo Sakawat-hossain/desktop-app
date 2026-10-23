@@ -243,6 +243,13 @@ fi
 
 mkdir -p "bin/${ARCH_TARGET}"
 
+# Panel connection (see docs/PANEL.md)
+PANEL_LDFLAGS=""
+[ -n "$PANEL_HOST" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelHost=$PANEL_HOST"
+[ -n "$PANEL_SCHEME" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelScheme=$PANEL_SCHEME"
+[ -n "$PANEL_APP_KEY" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelAppKey=$PANEL_APP_KEY"
+[ -n "$PANEL_CERT_HASHES" ] && PANEL_LDFLAGS="$PANEL_LDFLAGS -X github.com/ivpn/desktop-app/daemon/api.PanelCertHashes=$PANEL_CERT_HASHES"
+
 CC="${_CC}" \
 CGO_CFLAGS="-mmacosx-version-min=${_DEPLOY_MIN} ${_ARCH_FLAG} -isysroot ${_SDK}" \
 CGO_LDFLAGS="-mmacosx-version-min=${_DEPLOY_MIN} ${_ARCH_FLAG} -isysroot ${_SDK}" \
@@ -251,6 +258,6 @@ go build \
     -tags "${BUILDTAGS_NOWIFI} ${BUILDTAGS_USE_LIBVPN} ${BUILDTAGS_DEBUG}" \
     -o "bin/${ARCH_TARGET}/IVPN Agent" \
     -trimpath \
-    -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=$VERSION -X github.com/ivpn/desktop-app/daemon/version._commit=$COMMIT -X github.com/ivpn/desktop-app/daemon/version._time=$DATE"
+    -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=$VERSION -X github.com/ivpn/desktop-app/daemon/version._commit=$COMMIT -X github.com/ivpn/desktop-app/daemon/version._time=$DATE${PANEL_LDFLAGS}"
 
 echo "Compiled daemon binary: '$(pwd)/bin/${ARCH_TARGET}/IVPN Agent'"

@@ -1391,7 +1391,7 @@ func (s *Service) setCredentials(accountInfo preferences.AccountStatus, accountI
 }
 
 // SessionNew creates new session
-func (s *Service) SessionNew(accountID string, forceLogin bool, captchaID string, captcha string, confirmation2FA string) (
+func (s *Service) SessionNew(accountID string, password string, forceLogin bool, captchaID string, captcha string, confirmation2FA string) (
 	apiCode int,
 	apiErrorMsg string,
 	accountInfo preferences.AccountStatus,
@@ -1461,7 +1461,7 @@ func (s *Service) SessionNew(accountID string, forceLogin bool, captchaID string
 			log.Warning(fmt.Sprintf("Failed to generate wireguard keys for new session: %s", err.Error()))
 		}
 
-		successResp, errorLimitResp, apiErr, rawRespStr, err = s._api.SessionNew(accountID, publicKey, kemKeys, forceLogin, captchaID, captcha, confirmation2FA)
+		successResp, errorLimitResp, apiErr, rawRespStr, err = s._api.SessionNew(accountID, password, publicKey, kemKeys, forceLogin, captchaID, captcha, confirmation2FA)
 		rawResponse = rawRespStr
 
 		apiCode = 0

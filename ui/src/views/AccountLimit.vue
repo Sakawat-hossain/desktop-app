@@ -60,6 +60,7 @@
 
 <script>
 import { isValidURL } from "@/helpers/helpers";
+import config from "@/config";
 const sender = window.ipcSender;
 
 export default {
@@ -146,13 +147,15 @@ export default {
     onUpgrade: function () {
       if (isValidURL(this.UpgradeToURL))
         sender.shellOpenExternal(this.UpgradeToURL);
-      else sender.shellOpenExternal(`https://www.ivpn.net/account`);
+      else sender.shellOpenExternal(config.URLAccount);
     },
     onContactSupport: function () {
-      sender.shellOpenExternal(`https://www.ivpn.net/contactus`);
+      sender.shellOpenExternal(config.URLAccount);
     },
     onVisitDeviceManagement: function () {
-      sender.shellOpenExternal(this.DeviceManagementURL);
+      if (isValidURL(this.DeviceManagementURL))
+        sender.shellOpenExternal(this.DeviceManagementURL);
+      else sender.shellOpenExternal(config.URLDevices);
     },
   },
 };

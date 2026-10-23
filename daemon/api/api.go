@@ -40,8 +40,8 @@ import (
 const (
 	_defaultRequestTimeout = time.Second * 10 // full request time (for each request)
 	_defaultDialTimeout    = time.Second * 5  // time for the dial to the API server (for each request)
-	_apiHost               = "api.ivpn.net"
-	_updateHost            = "repo.ivpn.net"
+	_apiHost               = "<panel>"        // logical name, resolved to PanelHost (see api_panel.go)
+	_updateHost            = "<update>"       // logical name, resolved to UpdateHost (see api_panel.go)
 	_serversPath           = "v5/servers.json"
 	_apiPathPrefix         = "v4"
 	_sessionNewPath        = _apiPathPrefix + "/session/new"
@@ -289,7 +289,7 @@ func (a *API) DoRequestByAlias(apiAlias string, ipTypeRequired protocolTypes.Req
 }
 
 // SessionNew - try to register new session
-func (a *API) SessionNew(accountID string, wgPublicKey string, kemKeys types.KemPublicKeys, forceLogin bool, captchaID string, captcha string, confirmation2FA string) (
+func (a *API) SessionNew(accountID string, password string, wgPublicKey string, kemKeys types.KemPublicKeys, forceLogin bool, captchaID string, captcha string, confirmation2FA string) (
 	*types.SessionNewResponse,
 	*types.SessionNewErrorLimitResponse,
 	*types.APIErrorResponse,
@@ -304,6 +304,7 @@ func (a *API) SessionNew(accountID string, wgPublicKey string, kemKeys types.Kem
 
 	request := &types.SessionNewRequest{
 		AccountID:       accountID,
+		Password:        password,
 		PublicKey:       wgPublicKey,
 		KemPublicKeys:   kemKeys,
 		ForceLogin:      forceLogin,

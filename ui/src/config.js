@@ -31,15 +31,23 @@ function GetResourcesPath() {
   return process.resourcesPath;
 }
 
+// Our admin panel (user area, sign-up, devices). Set VITE_PANEL_URL at build time.
+const PanelURL = (import.meta.env.VITE_PANEL_URL || "https://panel.example.com").replace(/\/+$/, "") + "/";
+
 export default {
   MinRequiredDaemonVer: "3.16.1",
+
+  PanelURL,
+  URLSignUp: PanelURL + "register",
+  URLAccount: PanelURL + "user/dashboard",
+  URLDevices: PanelURL + "user/devices",
 
   MinimizedUIWidth: 320,
   MaximizedUIWidth: 800,
   UpdateWindowWidth: 600,
 
   // shellOpenExternal(...) allows only URLs started with this prefix
-  URLsAllowedPrefixes: ["https://www.ivpn.net/", "https://ivpn.net/", "x-apple.systempreferences:"],
+  URLsAllowedPrefixes: [PanelURL, "x-apple.systempreferences:"],
   URLApps: "https://www.ivpn.net/apps/",
 
   IsDebug,

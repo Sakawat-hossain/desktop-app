@@ -181,7 +181,8 @@ type ResumeConnection struct {
 // IVPN client apps have to set force to true only when customer clicks Log all other clients button.
 type SessionNew struct {
 	RequestBase
-	AccountID  string
+	AccountID  string // account e-mail
+	Password   string // account password (never stored)
 	ForceLogin bool
 
 	CaptchaID       string
