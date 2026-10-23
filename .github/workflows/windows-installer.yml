@@ -9,11 +9,10 @@ name: Windows installer
 #   variable PANEL_SCHEME  optional: "http" only for a test panel without TLS
 #   secret   PANEL_APP_KEY the panel's APP_FAST_API_KEY
 
+# Manual for now (Actions -> Windows installer -> Run workflow); local builds:
+# docs/BUILD-WINDOWS.md
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, 'claude/**' ]
-    tags: [ 'v*' ]
 
 permissions:
   contents: read
