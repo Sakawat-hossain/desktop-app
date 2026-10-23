@@ -118,7 +118,7 @@ goto :success
 
 	echo     Copying other files ...
 	set "MANIFEST=%MANIFEST_FILE%"
-	if "%GITHUB_ACTIONS%" == "true" (
+	if "%GITHUB_ACTIONS%" == "true" if not "%LEPID_FULL_BUILD%" == "1" (
 	  echo "! GITHUB_ACTIONS detected ! It is just a build test."
 	  echo "! Skipped compilation integration of some binaries into installer !"
 		set "MANIFEST=%MANIFEST_CI_FILE%"

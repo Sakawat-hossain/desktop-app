@@ -99,9 +99,9 @@ if ([string]::IsNullOrWhiteSpace($version)) {
 }
 
 $InstallerFile = if ($Arch -eq 'arm64') {
-    Join-Path $InstallerOutDir "IVPN-Client-v${version}-arm64.exe"
+    Join-Path $InstallerOutDir "LepidVPN-v${version}-arm64.exe"
 } else {
-    Join-Path $InstallerOutDir "IVPN-Client-v${version}.exe"
+    Join-Path $InstallerOutDir "LepidVPN-v${version}.exe"
 }
 
 $InstallerTmpDir = if ($Arch -eq 'arm64') {

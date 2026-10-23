@@ -47,6 +47,23 @@ build.bat
 
 Never commit the real app key; keep it in the CI secrets.
 
+## Windows installer from GitHub Actions
+
+The **Windows installer** workflow (`.github/workflows/windows-installer.yml`)
+builds the unsigned installer `LepidVPN-v<version>.exe` on every push to
+`main` / `claude/**` and on demand (Actions -> Windows installer -> Run
+workflow). Download it from the run page under **Artifacts**.
+
+Before building, set in the repository settings (Settings -> Secrets and
+variables -> Actions):
+
+* Variables: `PANEL_HOST`, `PANEL_URL` (and `PANEL_SCHEME=http` only for a test
+  panel without HTTPS)
+* Secret: `PANEL_APP_KEY`
+
+The installer is not code-signed yet, so Windows SmartScreen shows "Unknown
+publisher" (More info -> Run anyway).
+
 ## Panel side
 
 * Add OpenVPN servers in the panel as **Panel-managed OpenVPN** and deploy them.

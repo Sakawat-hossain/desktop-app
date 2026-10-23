@@ -78,7 +78,11 @@ echo COMMIT: %COMMIT%
 echo DATE  : %BUILD_DATE%
 echo ARCH  : %_TARGET_ARCH%
 
-if "%GITHUB_ACTIONS%" == "true" (
+rem GitHub Actions builds are quick build tests, unless LEPID_FULL_BUILD=1 (release installer)
+set "_CI_TEST_BUILD=0"
+if "%GITHUB_ACTIONS%" == "true" if not "%LEPID_FULL_BUILD%" == "1" set "_CI_TEST_BUILD=1"
+
+if "%_CI_TEST_BUILD%" == "1" (
 	  echo "! GITHUB_ACTIONS detected ! It is just a build test."
 	  echo "! Skipped compilation of Native projects and third-party dependencies: WireGuard, obfs4proxy, dnscrypt_proxy !"
 ) else (
@@ -90,16 +94,11 @@ if "%GITHUB_ACTIONS%" == "true" (
 	call :build_kem_helper   || goto :error
 )
 
-call :update_servers_info || goto :error
+rem NOTE: etc\servers.json is NOT downloaded from IVPN: the app gets the server list from our panel
 call :build_agent || goto :error
 
 rem THE END
 goto :success
-
-:update_servers_info
-	echo [*] Updating servers.json ...
-	curl -#fLo %SCRIPTDIR%..\..\common\etc\servers.json https://api.ivpn.net/v5/servers.json || exit /b 1
-	goto :eof
 
 :build_agent
 	cd "%SCRIPTDIR%..\..\.."
@@ -122,7 +121,7 @@ goto :success
 	if not "%PANEL_APP_KEY%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelAppKey=%PANEL_APP_KEY%"
 	if not "%PANEL_CERT_HASHES%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelCertHashes=%PANEL_CERT_HASHES%"
 
-	echo [*] Building IVPN service (%_TARGET_ARCH%) ...
+	echo [*] Building LepidVPN service (%_TARGET_ARCH%) ...
 	if exist "bin\%_TARGET_ARCH%\LepidVPN Service.exe" del "bin\%_TARGET_ARCH%\LepidVPN Service.exe" || exit /b 1
 
 	go build -tags release -o "bin\%_TARGET_ARCH%\LepidVPN Service.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%BUILD_DATE%%PANEL_LDFLAGS%" || exit /b 1
@@ -134,7 +133,7 @@ goto :success
 	if /I "%_TARGET_ARCH%" == "arm64" ( set "_MSBUILD_PLATFORM=ARM64" ) else ( set "_MSBUILD_PLATFORM=x64" )
 	echo [*] Building Native projects %_MSBUILD_PLATFORM%
 
-	if "%GITHUB_ACTIONS%" == "true" (
+	if "%_CI_TEST_BUILD%" == "1" (
 	  echo "! GITHUB_ACTIONS detected ! It is just a build test."
 	  echo "! Skipped compilation of Native projects !"
 		goto :eof
