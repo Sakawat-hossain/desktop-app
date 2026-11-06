@@ -9,7 +9,7 @@ async function winInstallFolder() {
     let Registry = require("winreg");
     let regKey = new Registry({
       hive: Registry.HKLM,
-      key: "\\Software\\LepidVPN",
+      key: "\\Software\\OvpnPlus",
     });
 
     regKey.get(Registry.DEFAULT_VALUE, function (err, item) {

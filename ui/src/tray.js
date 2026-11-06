@@ -367,7 +367,7 @@ function doUpdateTrayMenu() {
     mainMenu.push({ type: "separator" });
   }
 
-  mainMenu.push({ label: "Show LepidVPN", click: menuHandlerShow });
+  mainMenu.push({ label: "Show OvpnPlus", click: menuHandlerShow });
   mainMenu.push({ type: "separator" });
 
   const isPMPasswordView = store.state.uiState.isParanoidModePasswordView;
@@ -529,7 +529,7 @@ function doUpdateTrayMenu() {
 
   // APPLY TRAY MENU
   lastTrayMenu = newMenu;
-  tray.setToolTip("LepidVPN");
+  tray.setToolTip("OvpnPlus");
   tray.setContextMenu(lastTrayMenu);
 
   updateDockMenuMacOS(menuTemplate);
@@ -611,7 +611,7 @@ function GetStatusText() {
       location += `${l.country}`;
     }
 
-    if (l.isIvpnServer == true) location += ` (ISP: LepidVPN)`;
+    if (l.isIvpnServer == true) location += ` (ISP: OvpnPlus)`;
     else if (l.isp) location += ` (ISP: ${l.isp})`;
 
     if (l.ip_address) retStr += `\nPublic IP: ${l.ip_address}`;
@@ -629,7 +629,7 @@ function GetStatusText() {
         locationV6 += `${l6.country}`;
       }
 
-      if (l6.isIvpnServer == true) locationV6 += ` (ISP: LepidVPN)`;
+      if (l6.isIvpnServer == true) locationV6 += ` (ISP: OvpnPlus)`;
       else if (l6.isp) locationV6 += ` (ISP: ${l6.isp})`;
     }
 

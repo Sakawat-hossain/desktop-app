@@ -1,4 +1,4 @@
-"""Generate LepidVPN logo, app icons and tray icons.
+"""Generate OvpnPlus logo, app icons and tray icons.
 
 Usage: python3 make_icons.py <ui-dir> <preview-dir>
 """
@@ -21,13 +21,14 @@ BLUE = "#3B82F6"
 GREEN = "#34D399"
 AMBER = "#F5B942"
 
-# Shield with a knocked-out "L" (100x100 box). Even-odd fill makes the L a hole.
+# Shield with a knocked-out "+" (100x100 box). Even-odd fill makes the plus a hole.
 SHIELD = "M50 5 L87 17.5 V45 C87 69.5 71.5 86.5 50 95 C28.5 86.5 13 69.5 13 45 V17.5 Z"
-L_MARK = "M37 27 H49 V60 H66 V71 H37 Z"
+# "+" of OvpnPlus, knocked out of / drawn on the shield
+MARK = "M44 27 H56 V41 H70 V53 H56 V67 H44 V53 H30 V41 H44 Z"
 
 
 def mark_svg(fill, size=100, hole=True, extra=""):
-    path = SHIELD + (" " + L_MARK if hole else "")
+    path = SHIELD + (" " + MARK if hole else "")
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 100 100">'
         f'<path fill-rule="evenodd" d="{path}" fill="{fill}"/>{extra}</svg>'
@@ -41,7 +42,7 @@ def app_icon_svg(size):
 <rect x="2" y="2" width="96" height="96" rx="22" fill="{NAVY}"/>
 <g transform="translate(15 14) scale(0.7)">
 <path d="{SHIELD}" fill="url(#g)"/>
-<path d="{L_MARK}" fill="#FFFFFF"/>
+<path d="{MARK}" fill="#FFFFFF"/>
 </g></svg>'''
 
 
@@ -85,7 +86,7 @@ def tray_svg(kind, light_taskbar):
     # shrink the shield a little when a badge is shown so both stay readable
     badge = status_overlay(kind)
     group = f'<g transform="translate(0 0) scale({0.86 if badge else 1})">' \
-            f'<path fill-rule="evenodd" d="{SHIELD} {L_MARK}" fill="{color}"/></g>'
+            f'<path fill-rule="evenodd" d="{SHIELD} {MARK}" fill="{color}"/></g>'
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">{group}{badge}</svg>'
 
 
@@ -97,12 +98,12 @@ def main():
     os.makedirs(PREVIEW, exist_ok=True)
 
     # --- wordmark logo for the login screen
-    d, w = text_path("LepidVPN", "/usr/share/fonts/opentype/inter/InterDisplay-Bold.otf", 22)
+    d, w = text_path("OvpnPlus", "/usr/share/fonts/opentype/inter/InterDisplay-Bold.otf", 22)
     total_w = 38 + w
     logo = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{total_w:.0f}" height="32" viewBox="0 0 {total_w:.1f} 32" fill="none">
 <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
 <stop offset="0" stop-color="{CYAN}"/><stop offset="1" stop-color="{BLUE}"/></linearGradient></defs>
-<g transform="scale(0.32)"><path fill-rule="evenodd" d="{SHIELD} {L_MARK}" fill="url(#lg)"/></g>
+<g transform="scale(0.32)"><path fill-rule="evenodd" d="{SHIELD} {MARK}" fill="url(#lg)"/></g>
 <g transform="translate(38 5)"><path d="{d}" fill="#2B9BF4"/></g>
 </svg>
 '''
@@ -161,7 +162,7 @@ def installer_bitmaps():
     # welcome/finish page: 164x314, navy with the shield mark
     side = f'''<svg xmlns="http://www.w3.org/2000/svg" width="164" height="314" viewBox="0 0 164 314">{shield}
 <rect width="164" height="314" fill="{NAVY}"/>
-<g transform="translate(42 100) scale(0.8)"><path d="{SHIELD}" fill="url(#g)"/><path d="{L_MARK}" fill="#FFFFFF"/></g></svg>'''
+<g transform="translate(42 100) scale(0.8)"><path d="{SHIELD}" fill="url(#g)"/><path d="{MARK}" fill="#FFFFFF"/></g></svg>'''
     Image.open(io.BytesIO(cairosvg.svg2png(bytestring=side.encode()))).convert("RGB").save(
         os.path.join(UI, "References/Windows/Installer/startfinish.bmp"))
     # page header: 150x57, white with the wordmark

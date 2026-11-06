@@ -33,7 +33,7 @@
         class="noBordersTextBtn settingsLinkText"
         v-on:click="visitWebsite"
       >
-        LepidVPN
+        OvpnPlus
       </button>-->
     </div>
   </div>

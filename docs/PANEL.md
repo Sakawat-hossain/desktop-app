@@ -50,7 +50,7 @@ Never commit the real app key; keep it in the CI secrets.
 ## Windows installer from GitHub Actions
 
 The **Windows installer** workflow (`.github/workflows/windows-installer.yml`)
-builds the unsigned installer `LepidVPN-v<version>.exe` on demand (Actions ->
+builds the unsigned installer `OvpnPlus-v<version>.exe` on demand (Actions ->
 Windows installer -> Run workflow). To build on your own PC see
 [BUILD-WINDOWS.md](BUILD-WINDOWS.md). Download it from the run page under **Artifacts**.
 

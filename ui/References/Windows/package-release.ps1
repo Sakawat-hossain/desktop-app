@@ -99,9 +99,9 @@ if ([string]::IsNullOrWhiteSpace($version)) {
 }
 
 $InstallerFile = if ($Arch -eq 'arm64') {
-    Join-Path $InstallerOutDir "LepidVPN-v${version}-arm64.exe"
+    Join-Path $InstallerOutDir "OvpnPlus-v${version}-arm64.exe"
 } else {
-    Join-Path $InstallerOutDir "LepidVPN-v${version}.exe"
+    Join-Path $InstallerOutDir "OvpnPlus-v${version}.exe"
 }
 
 $InstallerTmpDir = if ($Arch -eq 'arm64') {
@@ -324,7 +324,7 @@ if ($Signing) {
 $prevLocation = Get-Location
 Set-Location $InstallerNsiDir
 try {
-    & $MAKENSIS @nsisArgs "LepidVPN.nsi"
+    & $MAKENSIS @nsisArgs "OvpnPlus.nsi"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[!] NSIS failed (exit code $LASTEXITCODE)."; exit $LASTEXITCODE
     }

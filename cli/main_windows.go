@@ -25,5 +25,5 @@ package main
 import "fmt"
 
 func printServStartInstructions() {
-	fmt.Printf("Please, restart 'LepidVPN' service\n")
+	fmt.Printf("Please, restart 'OvpnPlus' service\n")
 }

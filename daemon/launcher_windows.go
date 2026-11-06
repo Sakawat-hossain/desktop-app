@@ -35,7 +35,7 @@ import (
 )
 
 // ServiceName -  name of the service
-const _serviceName = "LepidVPN"
+const _serviceName = "OvpnPlus"
 
 var _evtlog *eventlog.Log
 var _stopped chan struct{}

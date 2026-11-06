@@ -29,7 +29,7 @@
               <!-- NOTHING TO UPDATE-->
               <div v-if="!isHasUpgrade">
                 <div>
-                  <div class="big_text">You have the newest LepidVPN version!</div>
+                  <div class="big_text">You have the newest OvpnPlus version!</div>
                   <div class="small_text">
                     <div v-if="versionDaemon == versionUI">
                       v{{ versionDaemon }}
@@ -51,9 +51,9 @@
               <div v-else>
                 <div class="big_text">
                   <div v-if="versionLatestIsBeta">
-                    New LepidVPN beta version available
+                    New OvpnPlus beta version available
                   </div>
-                  <div v-else>New LepidVPN version available</div>
+                  <div v-else>New OvpnPlus version available</div>
                 </div>
 
                 <!-- info: new version -->

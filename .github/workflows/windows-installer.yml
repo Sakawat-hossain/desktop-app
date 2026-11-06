@@ -1,7 +1,7 @@
 name: Windows installer
 
-# Builds the full (unsigned) LepidVPN installer for Windows and uploads it as
-# a workflow artifact: Actions -> this run -> Artifacts -> LepidVPN-windows.
+# Builds the full (unsigned) OvpnPlus installer for Windows and uploads it as
+# a workflow artifact: Actions -> this run -> Artifacts -> OvpnPlus-windows.
 #
 # Panel settings (repository Settings -> Secrets and variables -> Actions):
 #   variable PANEL_HOST    panel host, e.g. panel.example.com
@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 120
 
     env:
-      LEPID_FULL_BUILD: "1"
+      OVPNPLUS_FULL_BUILD: "1"
       PANEL_HOST: ${{ vars.PANEL_HOST }}
       PANEL_SCHEME: ${{ vars.PANEL_SCHEME }}
       PANEL_APP_KEY: ${{ secrets.PANEL_APP_KEY }}
@@ -73,7 +73,7 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: LepidVPN-windows
-          path: ui/References/Windows/bin/LepidVPN-*.exe
+          name: OvpnPlus-windows
+          path: ui/References/Windows/bin/OvpnPlus-*.exe
           if-no-files-found: error
           retention-days: 30

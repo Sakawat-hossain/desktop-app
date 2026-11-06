@@ -3,7 +3,7 @@
     <div id="innerColumn">
       <div style="text-align: center" id="title">Diagnostic logs</div>
       <div style="text-align: center">
-        The information in the tabs shown below will be submitted to LepidVPN for
+        The information in the tabs shown below will be submitted to OvpnPlus for
         further analysis
       </div>
 
@@ -219,7 +219,7 @@ export default {
         sender.showMessageBoxSync({
           type: "info",
           buttons: ["OK"],
-          message: "Report sent to LepidVPN",
+          message: "Report sent to OvpnPlus",
           detail: `Report ID: ${id}`,
         });
       }

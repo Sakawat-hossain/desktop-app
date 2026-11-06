@@ -1,4 +1,4 @@
-; LepidVPN Windows Release Manifest
+; OvpnPlus Windows Release Manifest
 ; Used by build.bat to stage files into the installer temp directory.
 ;
 ; Format: DEST[=SOURCE]
@@ -19,8 +19,8 @@ icon.ico                                           = ui\References\Windows\Insta
 ; -------------------------------------------------------------------------
 ; Go-compiled binaries (produced by build_service / build_cli steps)
 ; -------------------------------------------------------------------------
-LepidVPN Service.exe                               = daemon\bin\{ARCH}\LepidVPN Service.exe
-cli\lepidvpn.exe                                   = cli\bin\{ARCH}\cli\lepidvpn.exe
+OvpnPlus Service.exe                               = daemon\bin\{ARCH}\OvpnPlus Service.exe
+cli\ovpnplus.exe                                   = cli\bin\{ARCH}\cli\ovpnplus.exe
 
 ; -------------------------------------------------------------------------
 ; Native C++ DLLs (VS output dirs use x64 / ARM64 naming)

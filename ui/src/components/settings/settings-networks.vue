@@ -36,11 +36,11 @@
       <ComponentDialog ref="helpCanApplyInBackground" header="Info">
         <div>
           <p>
-            By enabling this feature the LepidVPN daemon will apply the Wi-Fi control
-            settings before the LepidVPN app has been launched. This enables the
+            By enabling this feature the OvpnPlus daemon will apply the Wi-Fi control
+            settings before the OvpnPlus app has been launched. This enables the
             Wi-Fi control settings to be applied as quickly as possible as the
             daemon is started early in the operating system boot process and
-            before the LepidVPN app (The GUI).
+            before the OvpnPlus app (The GUI).
           </p>
         </div>
       </ComponentDialog>
@@ -147,7 +147,7 @@
           <ComponentDialog ref="helpUnTrustedBlockLan" header="Info">
             <div>
               <p>
-                When enabled, it overrides the LepidVPN Firewall option 'Allow LAN
+                When enabled, it overrides the OvpnPlus Firewall option 'Allow LAN
                 traffic' when connected to an untrusted network.
               </p>
             </div>

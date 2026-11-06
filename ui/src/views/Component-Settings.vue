@@ -54,7 +54,7 @@
                   activeBtn: view === 'firewall',
                 }"
               >
-                LepidVPN Firewall
+                OvpnPlus Firewall
               </button>
               <button
                 v-if="isLoggedIn && isSplitTunnelVisible"
@@ -282,7 +282,7 @@ export default {
       sender.showMessageBoxSync({
         type: "info",
         buttons: ["OK"],
-        message: "LepidVPN version info",
+        message: "OvpnPlus version info",
         detail: infoStr,
       });
     },

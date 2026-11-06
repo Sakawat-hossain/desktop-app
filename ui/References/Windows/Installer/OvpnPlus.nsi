@@ -1,4 +1,4 @@
-; LepidVPN Installer
+; OvpnPlus Installer
 ; Install script for NSIS 2.x
 
 SetCompressor lzma
@@ -28,13 +28,13 @@ ${StrLoc}
 
 ; SOURCE_DIR is defined in build.bat
 
-!define PRODUCT_NAME "LepidVPN"
-!define PRODUCT_IDENTIFIER "LepidVPN"
-!define PRODUCT_PUBLISHER "LepidVPN"
+!define PRODUCT_NAME "OvpnPlus"
+!define PRODUCT_IDENTIFIER "OvpnPlus"
+!define PRODUCT_PUBLISHER "OvpnPlus"
 
-!define APP_RUN_PATH "$INSTDIR\ui\LepidVPN.exe"
-!define PROCESS_NAME "LepidVPN.exe"
-!define IVPN_SERVICE_NAME "LepidVPN"
+!define APP_RUN_PATH "$INSTDIR\ui\OvpnPlus.exe"
+!define PROCESS_NAME "OvpnPlus.exe"
+!define IVPN_SERVICE_NAME "OvpnPlus"
 !define PATHDIR "$INSTDIR\cli"
 
 !define DEVCON_BASENAME "devcon.exe"
@@ -192,7 +192,7 @@ Var STR_RETURN_VAR
   SetShellVarContext all
 
   SetRegView 64
-  StrCpy $StartMenuFolder "LepidVPN"
+  StrCpy $StartMenuFolder "OvpnPlus"
 !macroend
 
 Function .onInit
@@ -220,7 +220,7 @@ FunctionEnd
 !define MUI_UNICON "icon.ico"
 
 !define MUI_FINISHPAGE_NOAUTOCLOSE
-!define MUI_FINISHPAGE_RUN "$INSTDIR\LepidVPN.exe"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\OvpnPlus.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Run ${PRODUCT_NAME} now"
 !define MUI_FINISHPAGE_RUN_FUNCTION ExecAppFile
 
@@ -231,7 +231,7 @@ FunctionEnd
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "Create a desktop shortcut"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION finishpageaction
 Function finishpageaction
-CreateShortcut "$DESKTOP\LepidVPN.lnk" "${APP_RUN_PATH}"
+CreateShortcut "$DESKTOP\OvpnPlus.lnk" "${APP_RUN_PATH}"
 FunctionEnd
 
 LicenseForceSelection checkbox "I Agree"
@@ -268,7 +268,7 @@ LicenseForceSelection checkbox "I Agree"
 !insertmacro MUI_LANGUAGE "English"
 
 ;===============================
-; FINISH page modification handlers (add additional checkbox "Add LepidVPN CLI binary to the path" to the 'finish' page)
+; FINISH page modification handlers (add additional checkbox "Add OvpnPlus CLI binary to the path" to the 'finish' page)
 Function fin_show
 	ReadINIStr $0 "$PLUGINSDIR\iospecial.ini" "Field 6" "HWND"
 	SetCtlColors $0 0x000000 0xFFFFFF
@@ -277,7 +277,7 @@ FunctionEnd
 Function fin_pre
 	WriteINIStr "$PLUGINSDIR\iospecial.ini" "Settings" "NumFields" "6"
 	WriteINIStr "$PLUGINSDIR\iospecial.ini" "Field 6" "Type" "CheckBox"
-	WriteINIStr "$PLUGINSDIR\iospecial.ini" "Field 6" "Text" "Add LepidVPN CLI binary to the path"
+	WriteINIStr "$PLUGINSDIR\iospecial.ini" "Field 6" "Text" "Add OvpnPlus CLI binary to the path"
 	WriteINIStr "$PLUGINSDIR\iospecial.ini" "Field 6" "Left" "120"
 	WriteINIStr "$PLUGINSDIR\iospecial.ini" "Field 6" "Right" "315"
 	WriteINIStr "$PLUGINSDIR\iospecial.ini" "Field 6" "Top" "130"
@@ -305,7 +305,7 @@ Section "${PRODUCT_NAME}" SecIVPN
   SetOutPath "$INSTDIR"
 
   ; <<< Uninstall previous section START
-  ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LepidVPN" "UninstallString"
+  ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OvpnPlus" "UninstallString"
   StrCmp $R0 "" done
   DetailPrint "Removing previous installation..."
   ; # '_?=$INSTDIR' is required to be able to wait untill uninstaller finish
@@ -315,28 +315,28 @@ Section "${PRODUCT_NAME}" SecIVPN
   done:
   ; >>> Uninstall previous section END
 
-  ; Stop LepidVPN service
+  ; Stop OvpnPlus service
   stopservcice:
   Call StopService
   Pop $0 ; 1 - SUCCESS;
   ${if} $0 != 1
-		DetailPrint "ERROR: Failed to stop 'LepidVPN' service."
-		MessageBox MB_ABORTRETRYIGNORE|MB_ICONEXCLAMATION "Failed to stop 'LepidVPN' service.$\nIgnoring this problem can lead to issues with LepidVPN software in the future." IDRETRY stopservcice IDIGNORE ignoreservicestop
+		DetailPrint "ERROR: Failed to stop 'OvpnPlus' service."
+		MessageBox MB_ABORTRETRYIGNORE|MB_ICONEXCLAMATION "Failed to stop 'OvpnPlus' service.$\nIgnoring this problem can lead to issues with OvpnPlus software in the future." IDRETRY stopservcice IDIGNORE ignoreservicestop
 		DetailPrint "Aborted"
 		Abort
   ${EndIf}
   ignoreservicestop:
 
-  ; When service stopping - LepidVPN must also Close automatically
-  ; anyway, there could be situations when LepidVPN not connected to service (cannot receive 'service exiting' notification.)
-  ; Therefore, here we try to stop LepidVPN process manually.
-  ; Stop LepidVPN application
+  ; When service stopping - OvpnPlus must also Close automatically
+  ; anyway, there could be situations when OvpnPlus not connected to service (cannot receive 'service exiting' notification.)
+  ; Therefore, here we try to stop OvpnPlus process manually.
+  ; Stop OvpnPlus application
   stopclient:
   Call StopClient
   Pop $0 ; 1 - SUCCESS
   ${if} $0 != 1
-		DetailPrint "ERROR: Failed to stop 'LepidVPN' application."
-		MessageBox MB_ABORTRETRYIGNORE|MB_ICONEXCLAMATION "Failed to stop 'LepidVPN' application.$\nIgnoring this problem can lead to issues with LepidVPN software in the future." IDRETRY stopclient IDIGNORE ignoreclientstop
+		DetailPrint "ERROR: Failed to stop 'OvpnPlus' application."
+		MessageBox MB_ABORTRETRYIGNORE|MB_ICONEXCLAMATION "Failed to stop 'OvpnPlus' application.$\nIgnoring this problem can lead to issues with OvpnPlus software in the future." IDRETRY stopclient IDIGNORE ignoreclientstop
 		DetailPrint "Aborted"
 		Abort
   ${EndIf}
@@ -361,12 +361,12 @@ Section "${PRODUCT_NAME}" SecIVPN
   StrCmp $R2 "" reg_autostart_update reg_autostart_done
   reg_autostart_update:
   DetailPrint "Fixing the AutoStart registry item ..."
-  ; "C:\Program Files\LepidVPN\ui\LepidVPN.exe" --hidden
+  ; "C:\Program Files\OvpnPlus\ui\OvpnPlus.exe" --hidden
   WriteRegStr    HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_IDENTIFIER}" '"${APP_RUN_PATH}" --hidden'
   reg_autostart_done:
   ; <<<
 
-  ; extract all files from source dir (it is important that LepidVPN Application must be stopped on this moment)
+  ; extract all files from source dir (it is important that OvpnPlus Application must be stopped on this moment)
   File /r "${SOURCE_DIR}\*.*"
 
   CreateDirectory "$INSTDIR\log"
@@ -382,7 +382,7 @@ Section "${PRODUCT_NAME}" SecIVPN
   ; create StartMenu shortcuts
   CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
   CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Uninstall ${PRODUCT_NAME}.lnk" "$INSTDIR\Uninstall.exe"
-  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${PRODUCT_NAME}.lnk" "$INSTDIR\ui\LepidVPN.exe"
+  CreateShortCut "$SMPROGRAMS\$StartMenuFolder\${PRODUCT_NAME}.lnk" "$INSTDIR\ui\OvpnPlus.exe"
 
   ; ============ TAP driver ======================================================================
   DetailPrint "Installing TAP Driver..."
@@ -479,16 +479,16 @@ Section "${PRODUCT_NAME}" SecIVPN
   */
   ; ============ Service ======================================================================
   ; install service
-  DetailPrint "Installing LepidVPN service..."
-  nsExec::ExecToLog '"$SYSDIR\sc.exe" create "LepidVPN" binPath= "\"$INSTDIR\LepidVPN Service.exe\"" start= auto'
-  nsExec::ExecToLog '"$SYSDIR\sc.exe" sdset "LepidVPN" "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)"'
+  DetailPrint "Installing OvpnPlus service..."
+  nsExec::ExecToLog '"$SYSDIR\sc.exe" create "OvpnPlus" binPath= "\"$INSTDIR\OvpnPlus Service.exe\"" start= auto'
+  nsExec::ExecToLog '"$SYSDIR\sc.exe" sdset "OvpnPlus" "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)"'
 
   ; add service to firewall
-  ;nsExec::ExecToLog '"$SYSDIR\netsh.exe" firewall add allowedprogram "$INSTDIR\LepidVPN Service.exe" "LepidVPN Service" ENABLE'
+  ;nsExec::ExecToLog '"$SYSDIR\netsh.exe" firewall add allowedprogram "$INSTDIR\OvpnPlus Service.exe" "OvpnPlus Service" ENABLE'
 
   ; start service
-  DetailPrint "Starting LepidVPN service..."
-  nsExec::ExecToLog '"$SYSDIR\sc.exe" start "LepidVPN"'
+  DetailPrint "Starting OvpnPlus service..."
+  nsExec::ExecToLog '"$SYSDIR\sc.exe" start "OvpnPlus"'
 SectionEnd
 
 ; -----------
@@ -499,17 +499,17 @@ Section "Uninstall"
   SetRegView 64
 
   DetailPrint "Ensure VPN is disconnected..."
-  nsExec::ExecToLog '"${PATHDIR}\lepidvpn.exe" disconnect'
+  nsExec::ExecToLog '"${PATHDIR}\ovpnplus.exe" disconnect'
 
   ${StrContains} $0 " -update" $CMDLINE
   ${If} $0 == ""
       ; uninstall
       DetailPrint "Ensure firewall is disabled..."
-      nsExec::ExecToLog '"${PATHDIR}\lepidvpn.exe" firewall -persistent_off'
-      nsExec::ExecToLog '"${PATHDIR}\lepidvpn.exe" firewall -off'
+      nsExec::ExecToLog '"${PATHDIR}\ovpnplus.exe" firewall -persistent_off'
+      nsExec::ExecToLog '"${PATHDIR}\ovpnplus.exe" firewall -off'
 
       DetailPrint "Logout..."
-      nsExec::ExecToLog '"${PATHDIR}\lepidvpn.exe" logout'
+      nsExec::ExecToLog '"${PATHDIR}\ovpnplus.exe" logout'
   ${Else}
       ; update
   ${EndIf}
@@ -517,12 +517,12 @@ Section "Uninstall"
   ; stop service
   nsExec::ExecToLog '"$SYSDIR\sc.exe" stop "${IVPN_SERVICE_NAME}"'
 
-  ; wait a little (give change for LepidVPN application to stop)
+  ; wait a little (give change for OvpnPlus application to stop)
   Sleep 1500
 
-  ; When service stopping - LepidVPN must also Close automatically
-  ; anyway, there could be situations when LepidVPN not connected to service (cannot receive 'service exiting' notification.)
-  ; Therefore, here we try to stop LepidVPN process manually.
+  ; When service stopping - OvpnPlus must also Close automatically
+  ; anyway, there could be situations when OvpnPlus not connected to service (cannot receive 'service exiting' notification.)
+  ; Therefore, here we try to stop OvpnPlus process manually.
   ${StrContains} $0 " -update" $CMDLINE
   ${If} $0 == ""
       ; uninstall
@@ -541,7 +541,7 @@ Section "Uninstall"
   Sleep 1500
 
   ; remove service
-  nsExec::ExecToLog '"$SYSDIR\sc.exe" delete "LepidVPN"'
+  nsExec::ExecToLog '"$SYSDIR\sc.exe" delete "OvpnPlus"'
 
   ; removing firewall rules
   nsExec::ExecToLog '"$INSTDIR\ivpncli.exe" firewall disable'
@@ -560,7 +560,7 @@ Section "Uninstall"
 
   DetailPrint "Removing files..."
   ; remove all
-  Delete "$DESKTOP\LepidVPN.lnk"
+  Delete "$DESKTOP\OvpnPlus.lnk"
   RMDir /r "$INSTDIR\mutable"
   RMDir /r "$INSTDIR\log"
   RMDir /r "$INSTDIR\devcon"
@@ -582,9 +582,9 @@ Section "Uninstall"
       RMDir "$INSTDIR"
 
       SetShellVarContext current ; To be able to get environment variables of current user ("$LOCALAPPDATA", "$APPDATA")
-      RMDir /r "$APPDATA\LepidVPN"
+      RMDir /r "$APPDATA\OvpnPlus"
       SetShellVarContext all
-      RMDir /r "$APPDATA\LepidVPN"
+      RMDir /r "$APPDATA\OvpnPlus"
 
       RMDir /r "$PROFILE\.ivpn" ; ~/.ivpn (created by CLI)      
   ${Else}
@@ -592,7 +592,7 @@ Section "Uninstall"
   ${EndIf}
 
   ;!insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
-  StrCpy $StartMenuFolder "LepidVPN"
+  StrCpy $StartMenuFolder "OvpnPlus"
 
   Delete "$SMPROGRAMS\$StartMenuFolder\Uninstall ${PRODUCT_NAME}.lnk"
   Delete "$SMPROGRAMS\$StartMenuFolder\${PRODUCT_NAME}.lnk"
@@ -612,14 +612,14 @@ Function CheckOSSupported
     ${If} ${AtLeastWin10}
         goto archcheck
     ${EndIf}
-    MessageBox MB_ICONSTOP|MB_OK "Unsupported Windows Version.$\nThis version of LepidVPN can only be installed on Windows 10 and above."
+    MessageBox MB_ICONSTOP|MB_OK "Unsupported Windows Version.$\nThis version of OvpnPlus can only be installed on Windows 10 and above."
     Quit
 archcheck:
     ${If} ${RunningX64}
         goto end
     ${EndIf}
     ; ${RunningX64} returns true for both x64 and ARM64 (GetNativeSystemInfo: wProcessorArchitecture != 0)
-    MessageBox MB_ICONSTOP|MB_OK "Unsupported architecture.$\nThis version of LepidVPN can only be installed on 64-bit Windows."
+    MessageBox MB_ICONSTOP|MB_OK "Unsupported architecture.$\nThis version of OvpnPlus can only be installed on 64-bit Windows."
     Quit
 end:
 FunctionEnd
@@ -629,7 +629,7 @@ FunctionEnd
 ;	0 - NOT STOPPED
 ; 	1 - Stopped (SECCUSS)
 Function StopService
-	DetailPrint "Checking is LepidVPN service is running..."
+	DetailPrint "Checking is OvpnPlus service is running..."
 	Call IsServiceStopped
 	Pop $0
 	${If} $0 == 1
@@ -637,14 +637,14 @@ Function StopService
 		Return
 	${EndIf}
 
-	DetailPrint "Stopping LepidVPN service..."
+	DetailPrint "Stopping OvpnPlus service..."
 
 	; stop service
 	nsExec::ExecToStack '"$SYSDIR\sc.exe" stop "${IVPN_SERVICE_NAME}"'
 	Pop $0 ; Return
 	Pop $1 ; Output
 	${If} $0 == '1060'
-		DetailPrint "LepidVPN service does not exist as an installed service [1060]"
+		DetailPrint "OvpnPlus service does not exist as an installed service [1060]"
 		Push 1 		; Stopped OK
 		Return
 	${EndIf}
@@ -705,7 +705,7 @@ Function IsServiceStopped
 	Pop $0 ; Return
 	Pop $1 ; Output
 	${If} $0 == '1060'
-		DetailPrint "LepidVPN service does not exist as an installed service [1060]"
+		DetailPrint "OvpnPlus service does not exist as an installed service [1060]"
 		Push 1 		; Stopped OK
 		Return
 	${EndIf}
@@ -716,7 +716,7 @@ Function IsServiceStopped
 	${EndIf}
 
 	; An example of an expected result:
-	; 	SERVICE_NAME: LepidVPN
+	; 	SERVICE_NAME: OvpnPlus
     ;    TYPE               : 10  WIN32_OWN_PROCESS
     ;    STATE              : 4  RUNNING
     ;                            (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)
@@ -748,7 +748,7 @@ FunctionEnd
 ;	0 - NOT STOPPED
 ; 	1 - Stopped (SECCUSS)
 Function StopClient
-	DetailPrint "Checking is LepidVPN application is running..."
+	DetailPrint "Checking is OvpnPlus application is running..."
 	Call IsClientStopped
 	Pop $0
 	${If} $0 == 1
@@ -756,7 +756,7 @@ Function StopClient
 		Return
 	${EndIf}
 
-	DetailPrint "Terminating LepidVPN application..."
+	DetailPrint "Terminating OvpnPlus application..."
 
 	; stop client
 	nsExec::ExecToStack '"$SYSDIR\taskkill" /IM "${PROCESS_NAME}" /F'
@@ -878,8 +878,8 @@ Function AddPath
 
 		${if} $2 > 0
 			; the real PATH is not empty. Skip updating the PATH to avoid breaking anything.			
-			MessageBox MB_OK|MB_ICONINFORMATION  "The PATH was not updated because the original length of characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'lepidvpn' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment." /SD IDOK
-			DetailPrint "The PATH was not updated because the original length of characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'lepidvpn' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment."
+			MessageBox MB_OK|MB_ICONINFORMATION  "The PATH was not updated because the original length of characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'ovpnplus' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment." /SD IDOK
+			DetailPrint "The PATH was not updated because the original length of characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'ovpnplus' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment."
 			Goto end
 		${EndIf}
 	${EndIf}  
@@ -899,8 +899,8 @@ Function AddPath
 	StrLen $3 "${PATHDIR};"
 	IntOp $2 $2 + $3	
 	${If} $2 > ${NSIS_MAX_STRLEN}
-		MessageBox MB_OK|MB_ICONINFORMATION "The PATH was not updated because the new length of $2 characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'lepidvpn' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment." /SD IDOK
-		DetailPrint "The PATH was not updated because the new length of $2 characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'lepidvpn' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment."
+		MessageBox MB_OK|MB_ICONINFORMATION "The PATH was not updated because the new length of $2 characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'ovpnplus' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment." /SD IDOK
+		DetailPrint "The PATH was not updated because the new length of $2 characters exceeds the ${NSIS_MAX_STRLEN} character limit.$\r$\n$\r$\nTo facilitate quick access to the 'ovpnplus' command in the terminal, you can manually incorporate '${PATHDIR}' into the PATH variable within the Windows environment."
 		Goto end
 	${EndIf}
 	  

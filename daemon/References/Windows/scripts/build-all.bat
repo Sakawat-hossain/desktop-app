@@ -78,9 +78,9 @@ echo COMMIT: %COMMIT%
 echo DATE  : %BUILD_DATE%
 echo ARCH  : %_TARGET_ARCH%
 
-rem GitHub Actions builds are quick build tests, unless LEPID_FULL_BUILD=1 (release installer)
+rem GitHub Actions builds are quick build tests, unless OVPNPLUS_FULL_BUILD=1 (release installer)
 set "_CI_TEST_BUILD=0"
-if "%GITHUB_ACTIONS%" == "true" if not "%LEPID_FULL_BUILD%" == "1" set "_CI_TEST_BUILD=1"
+if "%GITHUB_ACTIONS%" == "true" if not "%OVPNPLUS_FULL_BUILD%" == "1" set "_CI_TEST_BUILD=1"
 
 if "%_CI_TEST_BUILD%" == "1" (
 	  echo "! GITHUB_ACTIONS detected ! It is just a build test."
@@ -121,12 +121,12 @@ goto :success
 	if not "%PANEL_APP_KEY%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelAppKey=%PANEL_APP_KEY%"
 	if not "%PANEL_CERT_HASHES%"=="" set "PANEL_LDFLAGS=%PANEL_LDFLAGS% -X github.com/ivpn/desktop-app/daemon/api.PanelCertHashes=%PANEL_CERT_HASHES%"
 
-	echo [*] Building LepidVPN service (%_TARGET_ARCH%) ...
-	if exist "bin\%_TARGET_ARCH%\LepidVPN Service.exe" del "bin\%_TARGET_ARCH%\LepidVPN Service.exe" || exit /b 1
+	echo [*] Building OvpnPlus service (%_TARGET_ARCH%) ...
+	if exist "bin\%_TARGET_ARCH%\OvpnPlus Service.exe" del "bin\%_TARGET_ARCH%\OvpnPlus Service.exe" || exit /b 1
 
-	go build -tags release -o "bin\%_TARGET_ARCH%\LepidVPN Service.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%BUILD_DATE%%PANEL_LDFLAGS%" || exit /b 1
+	go build -tags release -o "bin\%_TARGET_ARCH%\OvpnPlus Service.exe" -trimpath -ldflags "-s -w -X github.com/ivpn/desktop-app/daemon/version._version=%APPVER% -X github.com/ivpn/desktop-app/daemon/version._commit=%COMMIT% -X github.com/ivpn/desktop-app/daemon/version._time=%BUILD_DATE%%PANEL_LDFLAGS%" || exit /b 1
 
-	echo Compiled binary: "bin\%_TARGET_ARCH%\LepidVPN Service.exe"
+	echo Compiled binary: "bin\%_TARGET_ARCH%\OvpnPlus Service.exe"
 	goto :eof
 
 :build_native_libs

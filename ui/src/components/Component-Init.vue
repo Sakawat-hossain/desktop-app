@@ -3,7 +3,7 @@
     <spinner :loading="spinnerVisible" />
 
     <div class="main" v-if="isDaemonInstalling">
-      Installing LepidVPN Daemon ...
+      Installing OvpnPlus Daemon ...
       <div class="small_text" style="margin-top: 10px">
         Please follow the instructions in the dialog
       </div>
@@ -13,10 +13,10 @@
 
     <div v-else class="flexColumn">
       <div class="main">
-        <div class="large_text">Error connecting to LepidVPN daemon</div>
+        <div class="large_text">Error connecting to OvpnPlus daemon</div>
         <div v-if="daemonIsOldVersionError">
           <div class="small_text">
-            Unsupported LepidVPN daemon version v{{ currDaemonVer }} (minimum
+            Unsupported OvpnPlus daemon version v{{ currDaemonVer }} (minimum
             required v{{ minRequiredVer }}).
           </div>
           <div class="small_text">
@@ -25,29 +25,29 @@
               class="noBordersTextBtn settingsLinkText"
               v-on:click="visitWebsiteAppsPage"
             >
-              LepidVPN website</button
+              OvpnPlus website</button
             >.
           </div>
         </div>
         <div v-else>
           <div class="small_text">
-            Not connected to daemon. Please, ensure LepidVPN daemon is running and
+            Not connected to daemon. Please, ensure OvpnPlus daemon is running and
             try to reconnect.
           </div>
           <div v-if="isMacOS" class="small_text">
-            Ensure that the <span>'LepidVPN'</span> background item is enabled in
+            Ensure that the <span>'OvpnPlus'</span> background item is enabled in
             your system settings. If it's not enabled, please turn it on and
             then reboot your system. (<span
               >General -> Login Items -> Allow in the Background</span
             >)
           </div>
           <div class="small_text">
-            The latest version of the LepidVPN software can be downloaded from the
+            The latest version of the OvpnPlus software can be downloaded from the
             <button
               class="noBordersTextBtn settingsLinkText"
               v-on:click="visitWebsiteAppsPage"
             >
-              LepidVPN website</button
+              OvpnPlus website</button
             >.
           </div>
         </div>

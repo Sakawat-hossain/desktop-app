@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Builds the unsigned LepidVPN installer on this PC (daemon + CLI + UI + NSIS).
+    Builds the unsigned OvpnPlus installer on this PC (daemon + CLI + UI + NSIS).
 
 .DESCRIPTION
     Works from a normal PowerShell window: the script reloads PATH (tools
@@ -11,11 +11,11 @@
     written into a file or the command line. Output is saved to build.log.
 
 .EXAMPLE
-    .\build-lepidvpn.ps1 -PanelHost panel.example.com
+    .\build-ovpnplus.ps1 -PanelHost panel.example.com
 
 .EXAMPLE
     # test panel without HTTPS
-    .\build-lepidvpn.ps1 -PanelHost 141.11.76.19 -PanelScheme http
+    .\build-ovpnplus.ps1 -PanelHost 141.11.76.19 -PanelScheme http
 #>
 
 param(
@@ -91,7 +91,7 @@ $env:VITE_PANEL_URL = $PanelUrl
 
 Write-Host "[*] Panel: $PanelUrl (API host: $PanelHost, scheme: $PanelScheme)"
 Write-Host "[*] Build log: $LogFile"
-Set-Content -Path $LogFile -Value "LepidVPN build $(Get-Date -Format s) panel=$PanelUrl arch=$Arch"
+Set-Content -Path $LogFile -Value "OvpnPlus build $(Get-Date -Format s) panel=$PanelUrl arch=$Arch"
 
 # native tools write progress to stderr; don't treat it as a failure
 $ErrorActionPreference = 'Continue'
@@ -117,4 +117,4 @@ try {
 
 Write-Host ""
 Write-Host "[*] Done. Installer:"
-Get-ChildItem (Join-Path $PSScriptRoot 'bin') -Filter 'LepidVPN-*.exe' | ForEach-Object { Write-Host "    $($_.FullName)" }
+Get-ChildItem (Join-Path $PSScriptRoot 'bin') -Filter 'OvpnPlus-*.exe' | ForEach-Object { Write-Host "    $($_.FullName)" }

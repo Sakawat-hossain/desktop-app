@@ -1,4 +1,4 @@
-# Build and test LepidVPN on Windows
+# Build and test OvpnPlus on Windows
 
 ## 1. Install the tools (once)
 
@@ -29,16 +29,16 @@ Open **Developer PowerShell for VS 2022**, then:
 
 ```powershell
 cd desktop-app\ui\References\Windows
-.\build-lepidvpn.ps1 -PanelHost panel.example.com
+.\build-ovpnplus.ps1 -PanelHost panel.example.com
 # test panel without HTTPS:
-# .\build-lepidvpn.ps1 -PanelHost 141.11.76.19 -PanelScheme http
+# .\build-ovpnplus.ps1 -PanelHost 141.11.76.19 -PanelScheme http
 ```
 
 The script asks for the panel's `APP_FAST_API_KEY` (input hidden). The first
 build downloads and compiles WireGuard, obfs4proxy, v2ray, dnscrypt-proxy and
 the KEM helper, so it takes a while; later builds reuse them.
 
-Result: `ui\References\Windows\bin\LepidVPN-v<version>.exe` (unsigned; Windows
+Result: `ui\References\Windows\bin\OvpnPlus-v<version>.exe` (unsigned; Windows
 SmartScreen: More info → Run anyway).
 
 If PowerShell refuses to run scripts:
@@ -46,13 +46,13 @@ If PowerShell refuses to run scripts:
 
 ## 4. Test checklist
 
-1. Install, then check *Services*: **LepidVPN** is running.
-2. Start LepidVPN, log in with a panel user's e-mail + password.
+1. Install, then check *Services*: **OvpnPlus** is running.
+2. Start OvpnPlus, log in with a panel user's e-mail + password.
 3. Server list shows the panel's *Panel-managed OpenVPN* servers.
 4. Connect → the panel's *Devices* page lists this PC; browse the web; check
    the public IP.
 5. Disconnect, log out; wrong password shows an error.
 6. Optional: enable the firewall (kill switch), connect/disconnect.
 
-Logs if something fails: `C:\Program Files\LepidVPN\log\` (service) and
-`%APPDATA%\LepidVPN\logs\` (app).
+Logs if something fails: `C:\Program Files\OvpnPlus\log\` (service) and
+`%APPDATA%\OvpnPlus\logs\` (app).

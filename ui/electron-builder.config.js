@@ -1,6 +1,6 @@
 // macOS keeps the "IVPN" bundle name until the macOS packaging (helpers,
 // launch daemon, signing) is renamed as well.
-const productName = process.platform === "darwin" ? "IVPN" : "LepidVPN";
+const productName = process.platform === "darwin" ? "IVPN" : "OvpnPlus";
 
 module.exports = {
   productName,

@@ -1,6 +1,6 @@
 icon.ico
-LepidVPN Service.exe
-cli\lepidvpn.exe
+OvpnPlus Service.exe
+cli\ovpnplus.exe
 etc\ca.crt
 etc\servers.json
 etc\ta.key
