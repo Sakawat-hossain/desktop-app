@@ -73,6 +73,6 @@ select.trustedConfigUntrusted {
 }
 select.trustedConfigTrusted {
   @extend .trustedConfigBase;
-  color: #3b99fc;
+  color: var(--link-color);
 }
 </style>

@@ -34,8 +34,18 @@ function GetResourcesPath() {
 // Our admin panel (user area, sign-up, devices). Set VITE_PANEL_URL at build time.
 const PanelURL = (import.meta.env.VITE_PANEL_URL || "https://panel.example.com").replace(/\/+$/, "") + "/";
 
+// IVPN features that OvpnPlus does not offer. Our panel serves OpenVPN servers only,
+// so these stay hidden in the UI and are forced off in the settings store.
+const Features = {
+  WireGuard: false,
+  MultiHop: false,
+  AntiTracker: false,
+};
+
 export default {
   MinRequiredDaemonVer: "3.16.1",
+
+  Features,
 
   PanelURL,
   URLSignUp: PanelURL + "register",

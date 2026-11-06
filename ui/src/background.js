@@ -1310,7 +1310,7 @@ function getBackgroundColor() {
     (theme === ColorTheme.system && nativeTheme.shouldUseDarkColors === true) ||
     theme === ColorTheme.dark
   )
-    return "#1c1c1e";
+    return "#141416";
 
   return "#FFFFFF";
 }

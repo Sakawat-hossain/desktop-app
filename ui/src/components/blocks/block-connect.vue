@@ -394,11 +394,11 @@ $shadow:
 
 .settingsBtnResume {
   @extend .settingsBtn;
-  background-color: #449cf8;
+  background-color: var(--accent-color);
 }
 
 .settingsBtnResume:hover {
-  background-color: #3377ff;
+  background-color: var(--accent-color-hover);
 }
 
 .popup_menu_block_clickable {

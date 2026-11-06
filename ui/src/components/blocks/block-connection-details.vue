@@ -31,7 +31,10 @@
       :isProgress="firewallIsProgress"
     />
 
-    <div v-bind:class="{ lowOpacity: PrioritizedDNS != null }">
+    <div
+      v-if="features.AntiTracker"
+      v-bind:class="{ lowOpacity: PrioritizedDNS != null }"
+    >
       <div class="horizontalLine" />
 
       <OnOffButtonControl
@@ -117,6 +120,7 @@ import SplitTunnelControl from "@/components/controls/control-split-tunnel.vue";
 const sender = window.ipcSender;
 import { enumValueName } from "@/helpers/helpers";
 import { VpnTypeEnum, PortTypeEnum, VpnStateEnum } from "@/store/types";
+import config from "@/config";
 
 function processError(e) {
   console.error(e);
@@ -148,6 +152,9 @@ export default {
   },
 
   computed: {
+    features() {
+      return config.Features;
+    },
     portProtocolText: function () {
       let port = this.$store.getters["settings/getPort"];
       let protocol = this.$store.getters["settings/vpnType"];

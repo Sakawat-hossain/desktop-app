@@ -59,14 +59,14 @@ button.master {
     width: 100%;
     height: 28px;
 
-    background: linear-gradient(0deg, #F49572 0%, #FAAE91 100%), #FFFFFF;
+    background: linear-gradient(0deg, #FFA000 0%, #FFC233 100%), #FFFFFF;
     border: 1px solid var(--button-border-color);
     box-sizing: border-box;
     border-radius: 4px;
 
     font-size: 15px;
     line-height: 17px;
-    color: #FFFFFF;
+    color: var(--accent-text-color);
 
     cursor: pointer;
   }

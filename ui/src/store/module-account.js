@@ -20,6 +20,8 @@
 //  along with the UI for IVPN Client Desktop. If not, see <https://www.gnu.org/licenses/>.
 //
 
+import config from "@/config";
+
 const oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
 
 export default {
@@ -105,6 +107,7 @@ export default {
     },
 
     isMultihopAllowed: (state) => {
+      if (!config.Features.MultiHop) return false;
       // if no info about account status - let's believe that multihop is allowed
       if (!state.accountStatus || !state.accountStatus.Capabilities)
         return true;

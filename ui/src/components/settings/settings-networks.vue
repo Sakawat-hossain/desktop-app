@@ -645,7 +645,7 @@ select.trustedConfigUntrusted {
 }
 select.trustedConfigTrusted {
   @extend .trustedConfigBase;
-  color: #3b99fc;
+  color: var(--link-color);
 }
 
 input:disabled {
@@ -662,7 +662,7 @@ input:disabled + label {
 
   color: #ad6407;
     
-  background: rgba(57, 143, 230, 0.1);
+  background: var(--accent-soft-background);
   border-radius: 8px;
   padding-left: 14px;
   padding-right: 14px;

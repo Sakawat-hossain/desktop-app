@@ -78,7 +78,7 @@
               </button>
 
               <button
-                v-if="isLoggedIn"
+                v-if="isLoggedIn && features.AntiTracker"
                 class="noBordersBtn tabTitleBtn"
                 v-on:click="onView('antitracker')"
                 v-bind:class="{
@@ -169,7 +169,7 @@
         <div class="flexColumn" v-else-if="view === 'networks'">
           <networksView />
         </div>
-        <div class="flexColumn" v-else-if="view === 'antitracker'">
+        <div class="flexColumn" v-else-if="view === 'antitracker' && features.AntiTracker">
           <antitrackerView />
         </div>
         <div class="flexColumn" v-else-if="view === 'dns'">
@@ -202,6 +202,7 @@ import dnsView from "@/components/settings/settings-dns.vue";
 import advancedView from "@/components/settings/settings-advanced.vue";
 
 import imgArrowLeft from "@/components/images/arrow-left.vue";
+import config from "@/config";
 
 export default {
   components: {
@@ -219,6 +220,8 @@ export default {
   mounted() {
     this.onBeforeViewCloseHandler = null;
     if (this.$route.params.view != null) this.view = this.$route.params.view;
+    if (this.view === "antitracker" && !config.Features.AntiTracker)
+      this.view = "dns";
     this.$store.dispatch("uiState/currentSettingsViewName", this.view);
   },
   data: function () {
@@ -230,6 +233,9 @@ export default {
     };
   },
   computed: {
+    features() {
+      return config.Features;
+    },
     isLoggedIn: function () {
       return this.$store.getters["account/isLoggedIn"];
     },
@@ -411,7 +417,7 @@ button.tabTitleBtn {
 }
 button.activeBtn {
   font-weight: 500;
-  color: #3b99fc;
+  color: var(--link-color);
 }
 div.version {
   color: gray;

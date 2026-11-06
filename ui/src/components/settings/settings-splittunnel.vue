@@ -187,14 +187,6 @@
               application is restarted
             </p>
           </div>
-          <div class="settingsGrayLongDescriptionFont">
-            For more information refer to the
-            <linkCtrl
-              label="Split Tunnel Uses and Limitations"
-              url="https://www.ivpn.net/knowledgebase/general/split-tunnel-uses-and-limitations"
-            />
-            webpage
-          </div>
         </div>
       </ComponentDialog>
     </div>
@@ -322,8 +314,7 @@
                 DNS configuration.
               </p>
               <div class="settingsGrayLongDescriptionFont">
-                The OvpnPlus AntiTracker and custom DNS are not functional when this
-                feature is disabled.
+                Custom DNS is not functional when this feature is disabled.
               </div>
               <div class="settingsGrayLongDescriptionFont">
                 This functionality only applies in Inverse Split Tunnel mode
@@ -452,7 +443,6 @@ import ComponentDialog from "@/components/component-dialog.vue";
 import binaryInfoControl from "@/components/controls/control-app-binary-info.vue";
 
 import spinner from "@/components/controls/control-spinner.vue";
-import linkCtrl from "@/components/controls/control-link.vue";
 import textWithLinkCtrl from "@/components/controls/control-text-with-link.vue";
 import ComponentReplacer from "@/components/ComponentReplacer.vue";
 
@@ -478,7 +468,6 @@ export default {
     spinner,
     binaryInfoControl,
     ComponentDialog,
-    linkCtrl,
     textWithLinkCtrl,
     ComponentReplacer,
   },
@@ -1072,7 +1061,7 @@ function getFileFolder(appBinPath) {
 
   color: #ad6407;
 
-  background: rgba(57, 143, 230, 0.1);
+  background: var(--accent-soft-background);
   border-radius: 8px;
   padding-left: 14px;
   padding-right: 14px;

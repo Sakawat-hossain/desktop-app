@@ -29,14 +29,14 @@ button.hopButton {
     line-height: 18px;
     text-align: center;
     letter-spacing: -0.375px;
-    color: #36495D;
+    color: var(--text-color);
 
     opacity: 1;
     font-weight: 400;
 }
 button.hopButtonActive {
     @extend .hopButtonActiveBase;
-    color: #178FE6;
+    color: var(--link-color);
     opacity: 1;
     font-weight: 400;
 }
@@ -67,12 +67,12 @@ input.styledBig {
 button.master {
     width: 100%;
     height: 32px;
-    background: #0078D7;
+    background: var(--accent-color);
 
     font-size: 14px;
     line-height: 20px;
     text-align: center;
-    color: #FFFFFF;
+    color: var(--accent-text-color);
 
     border: 0px;
     cursor: pointer;

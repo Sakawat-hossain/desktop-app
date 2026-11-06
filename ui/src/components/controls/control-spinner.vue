@@ -15,7 +15,7 @@ export default {
     },
     color: {
       type: String,
-      default: "#3385ff",
+      default: "#FFB000",
     },
     radius: {
       type: Number,
@@ -67,7 +67,7 @@ export default {
   //border-top-color: #66a3ff;
   //border-top-color: #a0a0a0;
 
-  border-top-color: #3385ff;
+  border-top-color: var(--accent-color);
   opacity: 1;
 
   animation: spin 2s linear infinite;

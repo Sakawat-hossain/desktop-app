@@ -69,7 +69,7 @@ export default {
 }
 
 .badge-blue {
-  background-color: rgb(57, 158, 230);
+  background-color: var(--accent-color);
 }
 
 .boldFont {

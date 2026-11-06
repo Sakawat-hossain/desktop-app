@@ -77,7 +77,7 @@ export default {
 #progress {
   width: 0%;
   height: 8px;
-  background-color: #398fe6;
+  background-color: var(--accent-color);
   border-radius: 4px;
 }
 </style>

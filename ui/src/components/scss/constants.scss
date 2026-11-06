@@ -4,11 +4,19 @@
 $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
 
 :root {
-    --text-color-rgb: 42, 57, 75; // #2A394B
+    // OvpnPlus brand: black/white base with the gold of the logo as the accent
+    --accent-color: #FFB000;
+    --accent-color-hover: #FF9800;
+    --accent-text-color: #111111;    // text on an accent background
+    --accent-soft-background: rgba(255, 176, 0, 0.14);
+    --link-color: #A15F00;           // 5:1 on white
+    --switch-off-color: #C7C7CC;
+
+    --text-color-rgb: 22, 22, 26; // #16161A
     --text-color: rgba(var(--text-color-rgb));
-    --text-color-details: #2A394B7f; //rgba(#2A394B, 0.5);
-    --text-color-settings: #2A394Bda;   //rgba(#2A394B, 0.85);
-    --text-color-settings-menu: #2A394B;
+    --text-color-details: #16161A80;
+    --text-color-settings: #16161Ada;
+    --text-color-settings-menu: #16161A;
 
     // NOTE! the '--background-color-rgb' values should be synchronized with JS implementation
     // (src/background.js : getBackgroundColor())
@@ -36,13 +44,17 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
 
     @media (prefers-color-scheme: dark){
          color-scheme: dark;
+         --link-color: #FFB000;
+         --switch-off-color: #48484A;
+         --accent-soft-background: rgba(255, 176, 0, 0.16);
+
          --text-color-rgb: 255, 255, 255;
          --text-color:rgba(var(--text-color-rgb));
          --text-color-details: #ffffff7f;   //rgba(#ffffff, 0.5); 
          --text-color-settings:  #ffffffda;   //rgba(#ffffff, 0.85); 
          --text-color-settings-menu:  #ffffff7f;    //rgba(#ffffff, 0.5);
 
-         --background-color-rgb:28,28,30; // #1c1c1e;
+         --background-color-rgb:20,20,22; // #141416;
          --background-color: rgba(var(--background-color-rgb)); 
          --background-color-alternate: #000000;
 
@@ -123,7 +135,7 @@ button.noBordersTextBtn {
 
 button.link {
     @extend .noBordersTextBtn;
-    color: #398FE6;
+    color: var(--link-color);
   }
 
   div.scrollableColumnContainer {

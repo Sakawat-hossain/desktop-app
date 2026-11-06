@@ -32,6 +32,15 @@ import {
 } from "@/store/types";
 import { enumValueName } from "@/helpers/helpers";
 import { Platform, PlatformEnum } from "@/platform/platform";
+import config from "@/config";
+
+// Keep stored settings inside what OvpnPlus offers (see config.Features)
+function applyFeatureLimits(state) {
+  if (!config.Features.WireGuard) state.vpnType = VpnTypeEnum.OpenVPN;
+  if (!config.Features.MultiHop) state.isMultiHop = false;
+  if (!config.Features.AntiTracker && state.antiTracker)
+    state.antiTracker = { ...state.antiTracker, Enabled: false };
+}
 
 const defaultPort = { port: 2049, type: PortTypeEnum.UDP };
 
@@ -238,6 +247,7 @@ export default {
   mutations: {
     replaceState(state, val) {
       Object.assign(state, val);
+      applyFeatureLimits(state);
     },
 
     resetToDefaults(state) {
@@ -263,12 +273,14 @@ export default {
       state.enableIPv6InTunnel = val;
     },
     vpnType(state, val) {
+      if (!config.Features.WireGuard) val = VpnTypeEnum.OpenVPN;
       state.vpnType = val;
     },
     mtu(state, val) {
       state.mtu = val;
     },
     isMultiHop(state, isMH) {
+      if (!config.Features.MultiHop) isMH = false;
       state.isMultiHop = isMH;
     },
     serverEntry(state, srv) {
@@ -401,6 +413,7 @@ export default {
           AntiTrackerBlockListName: "",
         };
 
+      if (!config.Features.AntiTracker && val) val = { ...val, Enabled: false };
       state.antiTracker = val;
     },
 

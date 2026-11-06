@@ -194,8 +194,7 @@
       </button>
 
       <div class="fwDescription" tabindex="0">
-        Your OS may not follow the configured DNS order.<br/>
-        AntiTracker will override the custom DNS when enabled.
+        Your OS may not follow the configured DNS order.
       </div>
 
       </div>

@@ -1460,11 +1460,11 @@ div.accountWillExpire button {
 }
 div.trialWillExpire {
   @extend .upgradeBase;
-  background: #b2d5fb;
-  color: #3e6894;
+  background: #ffe3a3;
+  color: #6b4a00;
 }
 div.trialWillExpire button {
-  color: #3e6894;
+  color: #6b4a00;
 }
 
 // ============== settings =================
@@ -1582,7 +1582,7 @@ div.trialWillExpire button {
 }
 
 .mapLocationNameConnected {
-  color: #449cf8;
+  color: var(--accent-color);
 }
 
 .mapLocationPoint {
@@ -1597,7 +1597,7 @@ div.trialWillExpire button {
 }
 
 .mapLocationPointConnected {
-  background: #449cf8;
+  background: var(--accent-color);
 }
 
 // ========== ANIMATIONS ===========
@@ -1648,7 +1648,7 @@ div.trialWillExpire button {
   background: #6b6b6b;
 }
 .mapLocationCircleConnected {
-  background: #449cf8;
+  background: var(--accent-color);
 }
 
 .mapLocationCircleShrink {

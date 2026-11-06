@@ -9,6 +9,7 @@
 
     <div class="settingsTitle" tabindex="0">CONNECTION SETTINGS</div>
 
+    <div v-if="features.WireGuard">
     <div class="settingsBoldFont" tabindex="0">VPN protocol:</div>
 
     <div>
@@ -36,9 +37,10 @@
         <label class="defColor" for="wireguard">WireGuard</label>
       </div>
     </div>
+    </div>
 
-    <!-- IPv6 -->
-    <div>
+    <!-- IPv6 (not implemented for OpenVPN) -->
+    <div v-if="features.WireGuard">
       <div class="param" tabindex="0">
         <input
           type="checkbox"
@@ -523,6 +525,7 @@ import { enumValueName, dateDefaultFormat } from "@/helpers/helpers";
 import { SetInputFilterNumbers } from "@/helpers/renderer";
 import ComponentDialog from "@/components/component-dialog.vue";
 import ComponentAddCustomPort from "@/views/dialogs/addCustomPort.vue";
+import config from "@/config";
 
 const sender = window.ipcSender;
 
@@ -635,6 +638,9 @@ export default {
     },
   },
   computed: {
+    features() {
+      return config.Features;
+    },
     tooltipOptionEditRequiresDisconnection: function () {
       if (this.isDisconnected) return null;
       return "Disconnect VPN to edit this option";
