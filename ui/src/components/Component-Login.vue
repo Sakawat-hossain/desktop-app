@@ -5,7 +5,7 @@
 
       <div class="column">
         <div class="centered" style="margin-top: -50px; margin-bottom: 50px">
-          <img src="@/assets/logo.svg" />
+          <img :src="isDarkTheme ? logoDark : logoLight" alt="OvpnPlus" style="max-width: 240px; width: 100%" />
         </div>
 
         <div v-if="isCaptchaRequired">
@@ -120,6 +120,8 @@ import SwitchProgress from "@/components/controls/control-switch-small2.vue";
 import { IsOsDarkColorScheme } from "@/helpers/renderer";
 import { ColorTheme } from "@/store/types";
 import config from "@/config";
+import logoLight from "@/assets/logo.png";
+import logoDark from "@/assets/logo_dark.png";
 
 const sender = window.ipcSender;
 import {
@@ -163,6 +165,9 @@ export default {
       apiResponseStatus: 0,
 
       capchaImageStyle: "",
+      isDarkTheme: false,
+      logoLight,
+      logoDark,
 
       isForceLogoutRequested: false,
       captcha: "",
@@ -324,6 +329,7 @@ export default {
       if (scheme === ColorTheme.system) {
         isDarkTheme = IsOsDarkColorScheme();
       } else isDarkTheme = scheme === ColorTheme.dark;
+      this.isDarkTheme = isDarkTheme;
 
       if (isDarkTheme)
         this.capchaImageStyle =
