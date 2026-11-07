@@ -12,7 +12,7 @@
         </button>
         <div v-else class="large_text">{{ text }}</div>
 
-        <div style="height: 5px" />
+        <div style="height: 2px" />
         <div class="small_text">
           {{ description }}
         </div>
@@ -64,21 +64,26 @@ export default {
 @import "@/components/scss/constants";
 
 .large_text {
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 17px;
+  font-weight: 500;
 }
 
 .small_text {
-  font-size: 11px;
-  line-height: 13px;
-  color: var(--text-color-details);
+  font-size: 11.5px;
+  line-height: 14px;
+  color: var(--text-faint);
 }
 
 .switchButton {
-  @extend .left_panel_block;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  text-align: left;
 }
 
 button.noBordersTextBtnEx {

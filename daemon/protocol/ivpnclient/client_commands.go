@@ -34,6 +34,14 @@ type TunnelHealthResp struct {
 	IsUnhealthy bool
 }
 
+// TrafficStatsResp reports the tunnel's total bytes received/sent (OpenVPN), about once a second while connected.
+// The UI turns two samples into download/upload speed.
+type TrafficStatsResp struct {
+	CommandBase
+	RxBytes uint64
+	TxBytes uint64
+}
+
 type GetTunnelHealth struct {
 	RequestBase
 }

@@ -22,6 +22,7 @@
 
 import { enumValueName, getDistanceFromLatLonInKm } from "../helpers/helpers";
 import { IsServerSupportIPv6 } from "@/helpers/helpers_servers";
+import { newTrafficState, nextTrafficState } from "@/helpers/traffic";
 import {
   VpnTypeEnum,
   VpnStateEnum,
@@ -41,6 +42,18 @@ export default {
     // Tunnel health: true when daemon reported unhealthy (no peer response).
     // Separate from connectionState - does not affect CONNECTED/DISCONNECTED flow.
     tunnelIsUnhealthy: false,
+
+    // Tunnel speed from the daemon's byte counters (OpenVPN, about once a second).
+    // rxBps/txBps: bytes per second; history: last 60 samples of {rx, tx} in bytes per second;
+    // sessionRx/sessionTx: bytes since the tunnel started.
+    traffic: {
+      rxBps: 0,
+      txBps: 0,
+      sessionRx: 0,
+      sessionTx: 0,
+      history: [],
+      last: null, // previous raw sample {rx, tx, time}
+    },
 
     // The endpoint the tunnel talks to over the physical network: the VPN
     // server, or the obfuscation proxy (V2Ray, obfsproxy) in front of it.
@@ -226,6 +239,10 @@ export default {
       state.connectionInfo = null;
       state.remoteEndpoint = null;
       state.tunnelIsUnhealthy = false;
+      state.traffic = newTrafficState();
+    },
+    trafficSample(state, sample /*{rx, tx, time}*/) {
+      state.traffic = nextTrafficState(state.traffic, sample);
     },
     remoteEndpoint(state, endpoint) {
       state.remoteEndpoint = endpoint;

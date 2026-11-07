@@ -1410,7 +1410,7 @@ func (p *Protocol) notifyVpnStateChanged(stateObj *vpn.StateInfo) {
 
 	state := p._lastVPNState
 	if stateObj != nil {
-		if stateObj.State != vpn.TUNNEL_HEALTH {
+		if stateObj.State != vpn.TUNNEL_HEALTH && stateObj.State != vpn.TRAFFIC_STATS {
 			// Do not overwrite _lastVPNState with health notifications; it must always reflect actual connection state.
 			p._lastVPNState = *stateObj
 		}
@@ -1425,6 +1425,8 @@ func (p *Protocol) notifyVpnStateChanged(stateObj *vpn.StateInfo) {
 		p._lastTunnelUnhealthy = false
 		// Do not send DISCONNECTED event notification.
 		// It will be sent to the client only after finishing the synchronous function processConnectRequest().
+	case vpn.TRAFFIC_STATS:
+		p.notifyClientsQuiet(&ivpnclient.TrafficStatsResp{RxBytes: state.RxBytes, TxBytes: state.TxBytes})
 	case vpn.TUNNEL_HEALTH:
 		if !state.IsUnhealthy && !p._lastTunnelUnhealthy {
 			return // already healthy - no transition to report

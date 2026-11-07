@@ -240,6 +240,15 @@ func (o *OpenVPN) Connect(stateChan chan<- vpn.StateInfo) (retErr error) {
 		for {
 			select {
 			case stateInf = <-internalStateChan:
+				if stateInf.State == vpn.TRAFFIC_STATS {
+					// traffic counters are not a state change: forward if there is room, never block
+					select {
+					case stateChan <- stateInf:
+					default:
+					}
+					continue
+				}
+
 				// save current state
 				o.state = stateInf.State
 

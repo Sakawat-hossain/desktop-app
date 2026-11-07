@@ -133,6 +133,8 @@ export default {
     messageAccountExpiration: (state) => {
       if (!state.accountStatus) return null;
       if (state.accountStatus.IsFreeTrial) return null;
+      // ActiveUntil = 0: the plan has no end date (our panel sends 0 for the free plan)
+      if (!state.accountStatus.ActiveUntil) return null;
 
       const expirationDate = new Date(state.accountStatus.ActiveUntil * 1000);
       const currDate = new Date();

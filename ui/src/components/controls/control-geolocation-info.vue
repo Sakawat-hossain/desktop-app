@@ -67,10 +67,11 @@
           </span>
         </div>
 
-        <div class="flexRow row">
-          <div class="descriptipn">IP Address</div>
+        <div class="infoGrid">
+        <div class="infoCell">
+          <div class="infoLabel">IP ADDRESS</div>
 
-          <div class="flexRow" style="overflow: hidden">
+          <div class="flexRow infoValue" style="overflow: hidden">
             <div
               style="
                 white-space: nowrap;
@@ -98,13 +99,14 @@
           </div>
         </div>
 
-        <div class="flexRow row">
-          <div class="descriptipn">Location</div>
-          <div class="value">{{ locationName }}</div>
+        <div class="infoCell">
+          <div class="infoLabel">LOCATION</div>
+          <div class="infoValue">{{ locationName }}</div>
         </div>
-        <div class="flexRow row">
-          <div class="descriptipn">ISP</div>
-          <div class="value">{{ isp }}</div>
+        <div class="infoCell">
+          <div class="infoLabel">PROVIDER</div>
+          <div class="infoValue" v-bind:class="{ infoAccent: isp === 'OvpnPlus' }">{{ isp }}</div>
+        </div>
         </div>
       </div>
     </div>
@@ -189,7 +191,38 @@ export default {
 #main {
   font-size: 12px;
   line-height: 20px;
-  min-height: 60px;
+  min-height: 40px;
+  width: 100%;
+}
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.infoCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.infoLabel {
+  font-size: 11px;
+  line-height: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+.infoValue {
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.infoAccent {
+  color: var(--link-color);
 }
 div.row {
   margin-top: 4px;

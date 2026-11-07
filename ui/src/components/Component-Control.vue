@@ -35,7 +35,6 @@
             :isProgress="isInProgress"
             :onPauseResume="onPauseResume"
           />
-          <div class="horizontalLine hopButtonsSeparator" />
         </div>
 
         <div
@@ -76,6 +75,7 @@
             </button>
           </transition>
         </div>
+        <PlanBar />
       </div>
     </transition>
   </div>
@@ -87,6 +87,7 @@ import ConnectBlock from "./blocks/block-connect.vue";
 import ConnectionDetailsBlock from "./blocks/block-connection-details.vue";
 import SelectedServerBlock from "@/components/blocks/block-selected-server.vue";
 import HopButtonsBlock from "./blocks/block-hop-buttons.vue";
+import PlanBar from "./blocks/block-plan-bar.vue";
 
 const sender = window.ipcSender;
 import { VpnStateEnum, VpnTypeEnum } from "@/store/types";
@@ -125,6 +126,7 @@ export default {
   },
 
   components: {
+    PlanBar,
     HopButtonsBlock,
     Servers,
     ConnectBlock,

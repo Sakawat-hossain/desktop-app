@@ -73,6 +73,12 @@
     -->
 
     <div class="bottomPanel">
+      <transition name="fade">
+        <BlockSpeedGraph
+          v-if="isConnected && !$store.getters['vpnState/isPaused']"
+          class="speedGraph"
+        />
+      </transition>
       <div class="flexRow">
         <div class="geolocationInfoPanel">
           <GeolocationInfoControl style="display: flex; align-items: center" />
@@ -209,6 +215,7 @@ import { CheckAndNotifyInaccessibleServer } from "@/helpers/helpers_servers";
 const sender = window.ipcSender;
 import popupControl from "@/components/controls/control-map-popup.vue";
 import GeolocationInfoControl from "@/components/controls/control-geolocation-info.vue";
+import BlockSpeedGraph from "@/components/blocks/block-speed-graph.vue";
 import { IsWindowHasFrame } from "@/platform/platform";
 
 import Image_world_map_dark from "@/assets/world_map_dark.svg";
@@ -227,6 +234,7 @@ export default {
   components: {
     popupControl,
     GeolocationInfoControl,
+    BlockSpeedGraph,
   },
   props: {
     isBlured: String,
@@ -1404,24 +1412,28 @@ $popup-background: var(--background-color);
 .bottomPanel {
   @extend .buttonsPanelBase;
   bottom: 0;
-  margin-bottom: 32px;
-  margin-left: 32px;
-  width: calc(100% - 64px);
+  margin-bottom: 24px;
+  margin-left: 24px;
+  width: calc(100% - 48px);
 
   pointer-events: none;
 }
 
+.speedGraph {
+  margin-bottom: 12px;
+}
+
 .geolocationInfoPanel {
   //pointer-events: auto;
-  padding: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 14px 18px;
 
-  background: rgba(var(--background-color-rgb), 0.6);
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
 
-  backdrop-filter: blur(4px);
-  border-radius: 4px;
-
-  min-height: 76px;
-  min-width: 176px;
+  min-height: 64px;
 
   display: flex;
   align-items: center;
@@ -1430,7 +1442,7 @@ $popup-background: var(--background-color);
 // ============== account expiration =================
 div.upgradeBase {
   min-height: 40px;
-  border-radius: 8px;
+  border-radius: 12px;
 
   display: flex;
   align-items: center;
@@ -1452,11 +1464,13 @@ div.upgradeBase button {
 }
 div.accountWillExpire {
   @extend .upgradeBase;
-  background: #f3e2a3;
-  color: #776832;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent-ring);
+  color: var(--text-color);
 }
 div.accountWillExpire button {
-  color: #776832;
+  color: var(--link-color);
+  font-weight: 600;
 }
 div.trialWillExpire {
   @extend .upgradeBase;
@@ -1479,13 +1493,13 @@ div.trialWillExpire button {
   height: 32px;
 
   padding: 0px;
-  border: none;
+  border: 1px solid var(--surface-border);
   border-radius: 50%;
-  background-color: var(--background-color);
+  background-color: var(--surface-color);
   outline-width: 0;
   cursor: pointer;
 
-  box-shadow: $shadow;
+  box-shadow: none;
 
   // centering content
   display: flex;
@@ -1494,7 +1508,7 @@ div.trialWillExpire button {
 }
 
 .settingsBtn:hover {
-  background-color: var(--background-color-alternate);
+  border-color: var(--accent-color);
 }
 
 // ============== POPUP =================

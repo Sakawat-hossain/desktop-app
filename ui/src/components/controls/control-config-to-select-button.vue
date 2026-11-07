@@ -2,9 +2,9 @@
   <div>
     <button id="selectBtn" class="flexRow" v-on:click="click">
       <div align="left" class="flexRowRestSpace">
-        <div class="small_text">{{ description }}</div>
-        <div style="height: 5px" />
         <div class="large_text">{{ text }}</div>
+        <div style="height: 2px" />
+        <div class="small_text">{{ description }}</div>
       </div>
 
       <div v-if="isShowMarker" style="margin-right: 12px">
@@ -45,14 +45,15 @@ export default {
 @import "@/components/scss/constants";
 
 .large_text {
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 17px;
+  font-weight: 500;
 }
 
 .small_text {
-  font-size: 11px;
-  line-height: 13px;
-  color: var(--text-color-details);
+  font-size: 11.5px;
+  line-height: 14px;
+  color: var(--text-faint);
 }
 
 #selectBtn {
@@ -68,5 +69,7 @@ export default {
   align-items: center;
 
   width: 100%;
+  color: inherit;
+  text-align: left;
 }
 </style>

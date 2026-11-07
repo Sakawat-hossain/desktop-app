@@ -3,7 +3,7 @@
     <button class="serverSelectBtn" v-on:click="showServersList()">
       <div class="flexRow" style="height: 100%">
         <div class="flexColumn" align="left">
-          <div class="small_text" style="margin-top: 8px">
+          <div v-if="isExitServer" class="small_text">
             {{
               this.isExitServer
                 ? "Exit server"
@@ -14,7 +14,6 @@
                     : "Connect to"
             }}
           </div>
-          <div style="min-height: 4px" />
           <div class="flexRow">
             <serverNameControl
               class="serverName"
@@ -110,27 +109,35 @@ export default {
 @import "@/components/scss/constants";
 
 #main {
-  @extend .left_panel_block;
+  margin: 0 16px;
 }
 
 .small_text {
-  font-size: 14px;
-  line-height: 17px;
+  font-size: 11px;
+  line-height: 13px;
   letter-spacing: -0.3px;
   color: var(--text-color-details);
 }
 
 .serverSelectBtn {
-  padding: 0px;
-  border: none;
-  background-color: inherit;
+  box-sizing: border-box;
+  height: 62px;
+  width: 100%;
+  padding: 0 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  background-color: var(--surface-color);
+  color: inherit;
   outline-width: 0;
   cursor: pointer;
-
-  height: 82px;
-  width: 100%;
-
-  padding-bottom: 4px;
+  transition: border-color 0.2s;
+}
+.serverSelectBtn:hover {
+  border-color: var(--accent-color);
+}
+.serverSelectBtn:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
 }
 
 .serverName {

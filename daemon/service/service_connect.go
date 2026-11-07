@@ -728,6 +728,11 @@ func (s *Service) connect(originalEntryServerInfo *svrConnInfo, vpnProc vpn.Proc
 		for isRuning := true; isRuning; {
 			select {
 			case state = <-internalStateChan:
+				if state.State == vpn.TRAFFIC_STATS {
+					state.VpnType = vpnProc.Type()
+					s._evtReceiver.OnVpnStateChanged(state)
+					continue
+				}
 
 				// store info about current time
 				state.Time = time.Now().Unix()

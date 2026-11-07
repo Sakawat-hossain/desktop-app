@@ -12,6 +12,20 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
     --link-color: #A15F00;           // 5:1 on white
     --switch-off-color: #C7C7CC;
 
+    // cards and secondary text (2026-11 redesign)
+    --surface-color: #F6F6F7;
+    --surface-border: #E4E4E7;
+    --surface-divider: #ECECEF;
+    --text-muted: #55555E;       // 6.9:1 on white
+    --text-faint: #686872;       // 4.9:1 on the card colour
+    --accent-tint: #FFF1D1;
+    --accent-ring: #FFE2A0;
+    --neutral-tint: #ECECEF;
+    --danger-text: #B42318;
+    --danger-dot: #E5484D;
+    --good-text: #166534;
+    --good-background: #E3F5E9;
+
     --text-color-rgb: 22, 22, 26; // #16161A
     --text-color: rgba(var(--text-color-rgb));
     --text-color-details: #16161A80;
@@ -31,7 +45,7 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
     --input-border-color: rgba(var(--input-border-color-rgb));
     --input-background: #FBFBFB;
 
-    --map-background-color: #cbd2d3;
+    --map-background-color: #E4E4E7;
     --map-text-color: #6b6b6b;
     --map-point-color: #6b6b6b;
 
@@ -46,6 +60,19 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
          color-scheme: dark;
          --link-color: #FFB000;
          --switch-off-color: #48484A;
+
+         --surface-color: #17171A;
+         --surface-border: #26262B;
+         --surface-divider: #222227;
+         --text-muted: #A1A1AA;
+         --text-faint: #8E8E96;
+         --accent-tint: #2A2210;
+         --accent-ring: #3D3012;
+         --neutral-tint: #232328;
+         --danger-text: #FCA5A5;
+         --danger-dot: #F87171;
+         --good-text: #86EFAC;
+         --good-background: #14261B;
          --accent-soft-background: rgba(255, 176, 0, 0.16);
 
          --text-color-rgb: 255, 255, 255;
@@ -54,7 +81,7 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
          --text-color-settings:  #ffffffda;   //rgba(#ffffff, 0.85); 
          --text-color-settings-menu:  #ffffff7f;    //rgba(#ffffff, 0.5);
 
-         --background-color-rgb:20,20,22; // #141416;
+         --background-color-rgb:15,15,17; // #0F0F11;
          --background-color: rgba(var(--background-color-rgb)); 
          --background-color-alternate: #000000;
 
@@ -65,7 +92,7 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
          --input-border-color:rgba(var(--input-border-color-rgb));
          --input-background:rgba(211, 223, 230, 0.33);
 
-         --map-background-color: #292929;
+         --map-background-color: #0B0B0D;
          --map-text-color: #a2a2a2;
          --map-point-color: #d4d4d4;
 

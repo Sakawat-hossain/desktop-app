@@ -1,23 +1,14 @@
 <template>
-  <div>
-    <div>
-      <div class="horizontalLine" />
-      <div id="connection_header">
-        <div style="height: 24px"></div>
-
-        <span class="block datails_text"> CONNECTION DETAILS </span>
-      </div>
-      <div class="horizontalLine" />
-    </div>
-
-    <!-- FIREWALL -->
+  <div class="detailsCard">
+    <!-- FIREWALL (kill switch) -->
 
     <OnOffButtonControl
+      class="cardRow"
       v-bind:class="{ lowOpacity: IsPaused }"
-      text="Firewall"
+      text="Kill switch"
       :onTextClick="onShowFirewallConfig"
       textClickTooltip="Firewall settings"
-      description="Ensure that all traffic is routed through VPN"
+      description="Block internet if VPN drops"
       :onChecked="firewallOnChecked"
       :isChecked="this.$store.state.vpnState.firewallState.IsEnabled"
       :switcherOpacity="
@@ -58,20 +49,17 @@
     </div>
 
     <!-- PROTOCOL -->
-    <div class="horizontalLine" />
-
     <SelectButtonControl
-      class="leftPanelBlock"
+      class="cardRow leftPanelBlock"
       :click="onShowPorts"
-      v-bind:text="portProtocolText"
-      description="Protocol/Port"
+      text="Protocol"
+      v-bind:description="portProtocolText"
       title="Connection settings"
     />
 
     <!-- SPLIT TUNNEL -->
     <transition name="fade">
-      <div v-if="isLinux && IsSplitTunnelEnabled">
-        <div class="horizontalLine" />
+      <div v-if="isLinux && IsSplitTunnelEnabled" class="cardRow">
         <SplitTunnelControl class="leftPanelBlock" />
       </div>
     </transition>
@@ -83,13 +71,13 @@
           wifiSSID &&
           (isTrustedNetworksControlActive || isConnectVPNOnInsecureNetwork)
         "
+        class="cardRow"
       >
-        <div class="horizontalLine" />
         <SelectButtonControl
           class="leftPanelBlock"
           :click="onShowWifiConfig"
-          v-bind:text="wifiSSID"
-          :description="wifiSSID == '' ? 'No Wi-Fi connection' : 'Wi-Fi network'"
+          text="Wi-Fi network"
+          :description="wifiSSID"
           :markerText="WiFiMarkerText"
           :markerColor="WiFiMarkerColor"
           :markerTextColor="'var(--text-color-details)'"
@@ -98,14 +86,6 @@
       </div>
     </transition>
 
-    <!-- GEOLOCATOIN INFO -->
-    <transition name="fade" tabindex="0">
-      <div v-if="$store.state.settings.minimizedUI">
-        <div class="horizontalLine" />
-
-        <GeolocationInfoControl class="blockWithMrgings" />
-      </div>
-    </transition>
   </div>
 </template>
 
@@ -114,7 +94,6 @@ import { Platform, PlatformEnum } from "@/platform/platform";
 
 import OnOffButtonControl from "@/components/controls/control-config-on-off-button.vue";
 import SelectButtonControl from "@/components/controls/control-config-to-select-button.vue";
-import GeolocationInfoControl from "@/components/controls/control-geolocation-info.vue";
 import SplitTunnelControl from "@/components/controls/control-split-tunnel.vue";
 
 const sender = window.ipcSender;
@@ -135,7 +114,6 @@ export default {
   components: {
     OnOffButtonControl,
     SelectButtonControl,
-    GeolocationInfoControl,
     SplitTunnelControl,
   },
   props: [
@@ -327,11 +305,25 @@ export default {
   background: var(--background-color-alternate);
 }
 
+.detailsCard {
+  margin: 10px 16px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  background: var(--surface-color);
+  overflow: hidden;
+}
+.cardRow + .cardRow,
+.detailsCard > * + * {
+  border-top: 1px solid var(--surface-divider);
+}
+
 .leftPanelBlock {
-  @extend .left_panel_block;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 54px;
+  box-sizing: border-box;
+  padding: 0 14px;
 }
 
 div.blockWithMrgings {

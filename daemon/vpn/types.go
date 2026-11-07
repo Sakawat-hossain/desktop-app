@@ -76,6 +76,7 @@ const (
 	EXITING       State = iota // A graceful exit is in progress.
 	INITIALISED   State = iota // Interface initialised (WireGuard: but connection handshake still not detected)
 	TUNNEL_HEALTH State = iota // WireGuard-specific: tunnel health status notification (not a connection state change)
+	TRAFFIC_STATS State = iota // OpenVPN: total bytes in/out of the tunnel, about once a second (not a connection state change)
 )
 
 func (s State) IsConnecting() bool {
@@ -88,7 +89,7 @@ func (s State) IsConnecting() bool {
 }
 
 func (s State) String() string {
-	if s < DISCONNECTED || s > TUNNEL_HEALTH {
+	if s < DISCONNECTED || s > TRAFFIC_STATS {
 		return "<Unknown>"
 	}
 
@@ -105,7 +106,8 @@ func (s State) String() string {
 		"TCP_CONNECT",
 		"EXITING",
 		"INITIALISED",
-		"TUNNEL_HEALTH"}[s]
+		"TUNNEL_HEALTH",
+		"TRAFFIC_STATS"}[s]
 }
 
 // ParseState - Converts string representation of OpenVPN state to vpn.State
@@ -158,6 +160,8 @@ type StateInfo struct {
 	Mtu          int                    // applicable only for 'CONNECTED' state (WireGuard)
 	IsAuthError  bool                   // applicable only for 'EXITING' state
 	IsUnhealthy  bool                   // applicable only for 'TUNNEL_HEALTH' state; true when active probing detects no peer response (WireGuard-specific)
+	RxBytes      uint64                 // applicable only for 'TRAFFIC_STATS' state: total bytes received through the tunnel
+	TxBytes      uint64                 // applicable only for 'TRAFFIC_STATS' state: total bytes sent through the tunnel
 
 	// TODO: try to avoid using this protocol-specific parameter in future
 	// Currently, in use by OpenVPN connection to inform about "RECONNECTING" reason (e.g. "tls-error", "init_instance"...)

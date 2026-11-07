@@ -143,6 +143,7 @@ const daemonResponses = Object.freeze({
   WiFiCurrentNetworkResp: "WiFiCurrentNetworkResp",
 
   TunnelHealthResp: "TunnelHealthResp",
+  TrafficStatsResp: "TrafficStatsResp",
 
   ServiceExitingResp: "ServiceExitingResp",
 });
@@ -369,7 +370,8 @@ async function processResponse(response) {
         `<== ${obj.Command}  [${obj.Idx}] ${obj.APIPath}` +
           (obj.Error ? " Error!" : "")
       );
-    else log.debug(`<== ${obj.Command} [${obj.Idx}]`);
+    else if (obj.Command != "TrafficStatsResp") // arrives every second
+      log.debug(`<== ${obj.Command} [${obj.Idx}]`);
   } else log.error(`<== ${response}`);
 
   if (obj == null || obj.Command == null || obj.Command.length <= 0) return;
@@ -481,6 +483,14 @@ async function processResponse(response) {
 
     case daemonResponses.TunnelHealthResp:
       store.commit("vpnState/tunnelIsUnhealthy", obj.IsUnhealthy);
+      break;
+
+    case daemonResponses.TrafficStatsResp:
+      store.commit("vpnState/trafficSample", {
+        rx: obj.RxBytes,
+        tx: obj.TxBytes,
+        time: Date.now(),
+      });
       break;
 
     // Sent before every connection (and on Hello when GetActiveRemoteEndpoint

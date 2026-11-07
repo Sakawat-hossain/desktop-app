@@ -283,6 +283,12 @@ func (i *ManagementInterface) miCommunication() {
 			continue
 		}
 
+		// ">BYTECOUNT:in,out" arrives every second: handle it without logging
+		if strings.HasPrefix(message, ">BYTECOUNT:") {
+			i.onByteCount(strings.TrimSpace(strings.TrimPrefix(message, ">BYTECOUNT:")))
+			continue
+		}
+
 		i.log.Info("[<-]: ", message)
 
 		columns := mesRegexp.FindStringSubmatch(message)
@@ -325,7 +331,7 @@ func (i *ManagementInterface) miCommunication() {
 		case "INFO":
 
 		case "HOLD":
-			i.sendResponse("state on", "log on", "hold off", "hold release")
+			i.sendResponse("state on", "log on", "bytecount 1", "hold off", "hold release")
 
 		case "PASSWORD":
 			if strings.HasPrefix(msgText, "Verification Failed: 'Auth'") {
@@ -422,6 +428,24 @@ func (i *ManagementInterface) miCommunication() {
 
 	}
 }
+// onByteCount forwards OpenVPN's tunnel byte counters ("in,out", totals since start).
+// It never blocks: when the state channel is busy the sample is dropped.
+func (i *ManagementInterface) onByteCount(text string) {
+	cols := strings.Split(text, ",")
+	if len(cols) != 2 {
+		return
+	}
+	rx, err1 := strconv.ParseUint(strings.TrimSpace(cols[0]), 10, 64)
+	tx, err2 := strconv.ParseUint(strings.TrimSpace(cols[1]), 10, 64)
+	if err1 != nil || err2 != nil {
+		return
+	}
+	select {
+	case i.stateChan <- vpn.StateInfo{State: vpn.TRAFFIC_STATS, RxBytes: rx, TxBytes: tx}:
+	default:
+	}
+}
+
 func (i *ManagementInterface) onPushReplyCommands(cmds []string) {
 	// LOG:1586341059,,PUSH: Received control message: 'PUSH_REPLY,redirect-gateway def1,explicit-exit-notify 3,comp-lzo no,route-gateway 10.34.44.1,topology subnet,ping 10,ping-restart 60,dhcp-option DNS 10.34.44.1,ifconfig 10.34.44.19 255.255.252.0,peer-id 17,cipher AES-256-GCM'
 	var dns net.IP = nil

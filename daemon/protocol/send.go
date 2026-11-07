@@ -72,6 +72,15 @@ func (p *Protocol) notifyClients(cmd ICommandBase) {
 	}
 }
 
+// notifyClientsQuiet sends a frequent notification (e.g. traffic counters) without a log line per message.
+func (p *Protocol) notifyClientsQuiet(cmd ICommandBase) {
+	p._connectionsMutex.RLock()
+	defer p._connectionsMutex.RUnlock()
+	for conn := range p._connections {
+		Send(conn, cmd, 0)
+	}
+}
+
 func (p *Protocol) sendError(conn net.Conn, errorText string, cmdIdx uint32) {
 	log.Error(errorText)
 	p.sendResponse(conn, &ivpnclient.ErrorResp{ErrorMessage: errorText}, cmdIdx)
