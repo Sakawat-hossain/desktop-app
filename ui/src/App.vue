@@ -77,6 +77,20 @@ html * {
 input {
   background: var(--input-background);
 }
+// native checkboxes and radio buttons: brand gold instead of the browser's default blue
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent-color);
+}
+// settings "?" help/info icon buttons: 28 px hit target without moving their row
+button.noBordersBtn[title="Help"],
+button.noBordersBtn[title="Info"] {
+  min-width: 28px;
+  min-height: 28px;
+  margin-top: -5px;
+  margin-bottom: -5px;
+  justify-content: center;
+}
 textarea {
   background: var(--input-background);
 }

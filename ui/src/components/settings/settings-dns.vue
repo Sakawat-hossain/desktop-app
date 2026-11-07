@@ -608,7 +608,7 @@ div.HiddenDiv > * {
 button.likeText {
   border: none; 
   background: none;
-  color: #0066cc; 
+  color: var(--link-color);
   cursor: pointer; 
   font-size: inherit;
 }

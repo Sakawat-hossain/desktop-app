@@ -140,6 +140,9 @@ func (s *Service) Connect(params types.ConnectionParams) (err error) {
 		}
 	}
 
+	// Do not choose a host which the account can not use (e.g. Premium host of a location with Free and Premium hosts for a Free account)
+	params, _ = s.removeNotAllowedHosts(params)
+
 	// Normalize hosts list
 	// - in case of multiple entry hosts - take one random host from the list
 	// - in case of multiple exit hosts - take one random host from the list

@@ -247,6 +247,13 @@ svg * {
   cursor: pointer;
   transition: border-color 0.15s;
   -webkit-app-region: no-drag;
+  position: relative;
+}
+// the click target is 28 px high (1 px above and below the 26 px button)
+.planAction::before {
+  content: "";
+  position: absolute;
+  inset: -2px 0;
 }
 .planAction:hover {
   border-color: var(--accent-color);

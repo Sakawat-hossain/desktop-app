@@ -151,29 +151,27 @@ export default {
   line-height: 17px;
   letter-spacing: -0.208px;
 
-  color: #98a5b3;
+  color: var(--text-muted);
 }
 
 .btn {
   margin: 30px 0 0 0;
   width: 90%;
-  height: 28px;
-  background: #ffffff;
+  height: 32px;
+  background: var(--surface-color);
   border-radius: 10px;
-  border: 1px solid #7d91a5;
+  border: 1px solid var(--control-border);
 
   font-size: 15px;
   line-height: 20px;
   text-align: center;
   letter-spacing: -0.4px;
-  color: #556574; // #6d849a;
+  color: var(--text-color);
 
   cursor: pointer;
-  opacity: 0.8;
 }
 .btn:hover {
-  opacity: 1;
-  border-color: #5a7a94;
+  border-color: var(--accent-color);
 }
 .btn:active {
   opacity: 0.75;

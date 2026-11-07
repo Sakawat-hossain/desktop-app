@@ -183,9 +183,10 @@ button.rowTextBtn:focus-visible {
 }
 .switch input {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  // the click target is 44 x 28 (2 px around the 40 x 24 switch)
+  inset: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
   margin: 0;
   padding: 0;
   opacity: 0;

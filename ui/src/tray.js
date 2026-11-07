@@ -24,7 +24,11 @@
 const { Menu, Tray, app, nativeImage, dialog } = require("electron");
 import store from "@/store";
 import { VpnStateEnum, ColorThemeTrayIcon } from "@/store/types";
-import { CheckAndNotifyInaccessibleServer } from "@/helpers/helpers_servers";
+import {
+  CheckAndNotifyInaccessibleServer,
+  IsLockedForAccount,
+} from "@/helpers/helpers_servers";
+import { HostDisplayName } from "@/helpers/helpers_premium";
 
 import daemonClient from "@/daemon-client";
 import { Platform, PlatformEnum } from "@/platform/platform";
@@ -192,6 +196,8 @@ export function InitTray(
         case "settings/hostsFavoriteListDnsNames":
         case "settings/showHosts":
         case "account/session":
+        case "account/sessionStatus": // Free / Premium: which favorites can be used
+        case "vpnState/setServersData": // a server or host may have become Premium (or Free)
         case "isRequestingLocation":
         case "isRequestingLocationIPv6":
           updateTrayMenu();
@@ -320,7 +326,13 @@ function doUpdateTrayMenu() {
       if (!s || !s.gateway) return;
 
       var options = null;
-      if (store.state.settings.isMultiHop) {
+      if (IsLockedForAccount(s, host)) {
+        // Free account: a Premium location or host is listed but cannot be used
+        options = {
+          label: `${serverText(s, host ? host.hostname : null)} (Premium)`,
+          enabled: false,
+        };
+      } else if (store.state.settings.isMultiHop) {
         options = {
           label: serverName(null, s, null, host),
           click: async () => {
@@ -641,17 +653,26 @@ function GetStatusText() {
   return retStr;
 }
 
-function serverName(entryServer, exitServer, entryServerHost, exitServerHost) {
-  function text(svr, svrHostId) {
-    if (svr == null) return "";
-    if (typeof svr === "string") return svr;
+// "Dhaka District, BD"; with a host: "Dhaka District #1, BD" (the host's display
+// name, not its address; the host ID only when the host is not found)
+function serverText(svr, svrHostId) {
+  if (svr == null) return "";
+  if (typeof svr === "string") return svr;
 
-    let ret = `${svr.city}, ${svr.country_code}`;
-    if (svrHostId) {
-      ret += " (" + svrHostId.split(".")[0] + ")";
-    }
-    return ret;
+  let ret = `${svr.city}, ${svr.country_code}`;
+  if (svrHostId) {
+    const hostId = svrHostId.split(".")[0];
+    const host = (svr.hosts || []).find(
+      (h) => h && h.hostname && h.hostname.startsWith(hostId + ".")
+    );
+    if (host) ret = `${HostDisplayName(svr, host)}, ${svr.country_code}`;
+    else ret += " (" + hostId + ")";
   }
+  return ret;
+}
+
+function serverName(entryServer, exitServer, entryServerHost, exitServerHost) {
+  const text = serverText;
 
   const isConnected = store.getters["vpnState/isConnected"];
   const isFastestServer = store.state.settings.isFastestServer;

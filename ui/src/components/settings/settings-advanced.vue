@@ -22,7 +22,7 @@
       <div class="settingsDefaultTextColor paramName">Status:</div>
       <div style="font-weight: 500">
         <div v-if="IsPmEnabled">
-          <div style="color: #64ad07; min-width: 80px">Enabled</div>
+          <div style="color: var(--good-text); min-width: 80px">Enabled</div>
           <button
             class="settingsButton paramBlock"
             style="height: 24px; margin-top: 6px"

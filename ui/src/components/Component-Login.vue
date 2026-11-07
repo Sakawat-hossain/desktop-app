@@ -438,12 +438,12 @@ export default {
   font-size: 13px;
   line-height: 17px;
   letter-spacing: -0.208px;
-  color: #98a5b3;
+  color: var(--text-muted);
 }
 
 .switcher_small_text {
   font-size: 11px;
   line-height: 13px;
-  color: var(--text-color-details);
+  color: var(--text-muted);
 }
 </style>

@@ -100,6 +100,12 @@ export default {
   },
 
   getters: {
+    // the account may use Premium servers (the panel sends the "premium" capability)
+    isPremiumAccount: (state) => {
+      const caps = state.accountStatus?.Capabilities;
+      if (!Array.isArray(caps)) return false;
+      return caps.some((c) => String(c).toLowerCase() === "premium");
+    },
     isLoggedIn: (state) => !!state.session.Session,
 
     isAccountStateExists: (state) => {

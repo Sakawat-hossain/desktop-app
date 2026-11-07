@@ -39,7 +39,7 @@
                     </div>
                   </div>
                   <!-- OS-incompatible update exists -->
-                  <div v-if="isOsIncompatible" class="small_text" style="margin-top: 10px; color: orange">
+                  <div v-if="isOsIncompatible" class="small_text" style="margin-top: 10px; color: var(--danger-text)">
                     Version {{ versionLatestGeneric }} is available but requires OS version {{ latestVersionInfo.generic.minOsVersion }} or later.
                   </div>
                 </div>
@@ -72,7 +72,7 @@
                     </span>
                   </span>
                   <!-- info: version you have -->
-                  <span style="color: grey">
+                  <span style="color: var(--text-muted)">
                     <span
                       v-if="versionDaemon == versionUI"
                       style="color: inherit"
@@ -90,7 +90,7 @@
                     v-if="versionLatestIsBeta"
                     style="text-align: left; margin-top: 10px"
                   >
-                    <b><span style="color: red">Use at your own risk!</span></b>
+                    <b><span style="color: var(--danger-text)">Use at your own risk!</span></b>
                     <div style="margin-top: 10px">
                       You are receiving this notification because you have
                       "Notify beta version updates" enabled in the General
@@ -171,7 +171,7 @@
                     <div
                       v-if="isUpdateError"
                       class="flexRow flexRowRestSpace small_text"
-                      style="text-align: right; color: orange"
+                      style="text-align: right; color: var(--danger-text)"
                     >
                       Update failed {{ updateErrorText }}
                     </div>

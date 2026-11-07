@@ -31,6 +31,8 @@ type Capability string
 
 const (
 	MultiHop Capability = "multihop"
+	// OvpnPlus panel: the account may use Premium hosts
+	Premium Capability = "premium"
 )
 
 // AccountStatus contains information about current account
@@ -75,4 +77,14 @@ func (a AccountStatus) IsCanConnectMultiHop() error {
 		return nil
 	}
 	return fmt.Errorf("MultiHop connections are not allowed for the current subscription plan. Please upgrade your subscription to Pro")
+}
+
+// IsCanUsePremiumHosts returns false only when the account is known to be Free
+// (the OvpnPlus panel sends the "premium" capability for Premium accounts)
+func (a AccountStatus) IsCanUsePremiumHosts() bool {
+	if !a.IsInitialized() {
+		// It could be that account status is not known. No restrictions in this case.
+		return true
+	}
+	return a.IsHasCapability(Premium)
 }

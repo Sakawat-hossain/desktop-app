@@ -1059,7 +1059,7 @@ function getFileFolder(appBinPath) {
   line-height: 14px;
   letter-spacing: -0.4px;
 
-  color: #ad6407;
+  color: var(--link-color);
 
   background: var(--accent-soft-background);
   border-radius: 8px;

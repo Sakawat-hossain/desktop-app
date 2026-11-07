@@ -53,7 +53,7 @@ export default {
   font-size: 9pt;
   color: white;
   text-align: center;
-  line-height: 17pt;
+  line-height: 16pt;
   margin-right: 15px;
   text-transform: capitalize;
 
@@ -61,15 +61,18 @@ export default {
 }
 
 .badge-grey {
-  background-color: rgb(152, 165, 179);
+  background-color: var(--neutral-tint);
+  color: var(--text-soft);
 }
 
 .badge-green {
-  background-color: rgb(33, 208, 116);
+  background-color: var(--good-background);
+  color: var(--good-text);
 }
 
 .badge-blue {
   background-color: var(--accent-color);
+  color: var(--accent-text-color);
 }
 
 .boldFont {

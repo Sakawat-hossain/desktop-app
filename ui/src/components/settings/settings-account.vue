@@ -10,7 +10,7 @@
           <div class="settingsGrayDescriptionFont" tabindex="0">Account ID</div>
 
           <div id="accountID" tabindex="0" class="flexRow">
-              <label class="settingsBigBoldFont selectable" :class="{ blurred: isAccountIDBlurred }">
+              <label class="settingsBigBoldFont selectable" :class="{ blurred: isAccountIDBlurred, longAccountID: isLongAccountID }">
                 {{ this.$store.state.account.session.AccountID }}
               </label>
               <div @click="toggleAccountIDBlur" style="cursor: pointer; margin-left: 10px;">
@@ -57,14 +57,14 @@
 
       <!-- ACCOUNT EXPIRATION TEXT -->
       <div tabindex="0"
-        style="margin-bottom: 12px; color: darkorange"
+        style="margin-bottom: 12px; color: var(--danger-text)"
         v-if="$store.getters['account/messageAccountExpiration']"
       >
         {{ $store.getters["account/messageAccountExpiration"] }}
       </div>
       <!-- FREE TRIAL EXPIRATION TEXT -->
       <div tabindex="0"
-        style="margin-bottom: 12px; color: darkorange"
+        style="margin-bottom: 12px; color: var(--danger-text)"
         v-if="$store.getters['account/messageFreeTrial']"
       >
         {{ $store.getters["account/messageFreeTrial"] }}
@@ -134,7 +134,8 @@ export default {
   },
   mounted() {
     // generating QRcode
-    const typeNumber = 2;
+    // (0 = smallest size that fits: an e-mail account ID can be longer than the 26 bytes of size 2)
+    const typeNumber = 0;
     const errorCorrectionLevel = "M";
     const qr = qrcode(typeNumber, errorCorrectionLevel);
 
@@ -267,6 +268,11 @@ export default {
     IsAccountStateExists: function () {
       return this.$store.getters["account/isAccountStateExists"];
     },
+    // the account ID is the e-mail address: a long one gets a smaller font so it stays on one line
+    isLongAccountID: function () {
+      const id = this.$store.state.account.session.AccountID;
+      return typeof id === "string" && id.length > 22;
+    },
     CurrentPlan: function () {
       return this.$store.state.account.accountStatus.CurrentPlan;
     },
@@ -283,6 +289,9 @@ export default {
       // https://github.com/ivpn/desktop-app-shadow/issues/135
       // TODO: this is bad practice. The team account attribute have to be provideded by backend
       if (this.CurrentPlan == "Member VPN Pro Account") return false;
+      // ActiveUntil = 0: the plan has no end date (the panel sends 0 for the free plan);
+      // without this the page showed "Active until 1970-Jan-01"
+      if (!this.$store.state.account.accountStatus.ActiveUntil) return false;
 
       return true;
     },
@@ -327,14 +336,14 @@ export default {
 
 .statusButtonActive {
   @extend .statusButton;
-  background: rgba(177, 228, 125, 0.27);
-  color: #64ad07;
+  background: var(--good-background);
+  color: var(--good-text);
 }
 
 .statusButtonNotActive {
   @extend .statusButton;
-  background: rgba(228, 177, 125, 0.27);
-  color: #ad6407;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--danger-text);
 }
 
 .subscriptionDetails {
@@ -345,10 +354,18 @@ export default {
   margin-top: 3px;
   margin-bottom: 7px;
 }
+// a long e-mail account ID wraps instead of pushing the QR code out of the window
+#accountID label {
+  overflow-wrap: anywhere;
+}
+#accountID label.longAccountID {
+  font-size: 18px;
+  line-height: 24px;
+}
 
 #logoutButton {
   @extend .noBordersBtn;
-  padding: 5px;
+  padding: 8px 12px;
   margin-right: auto;
   margin-left: auto;
 
@@ -358,7 +375,7 @@ export default {
 
   letter-spacing: 1px;
 
-  color: #8b9aab;
+  color: var(--text-muted);
 }
 
 // Blur effect for the QR code

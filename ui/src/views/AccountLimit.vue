@@ -186,7 +186,7 @@ export default {
   justify-content: center;
 
   width: 100%;
-  background: #f8c373;
+  background: var(--accent-color);
 }
 
 .large_text {
@@ -203,7 +203,7 @@ export default {
   text-align: center;
   letter-spacing: -0.3px;
 
-  color: var(--text-color-details);
+  color: var(--text-muted);
 }
 
 .small_text2 {
@@ -212,7 +212,7 @@ export default {
   text-align: center;
   letter-spacing: -0.3px;
 
-  color: var(--text-color-details);
+  color: var(--text-muted);
 }
 
 .verticalSpace {
@@ -224,6 +224,9 @@ export default {
   line-height: 18px;
   text-align: center;
   letter-spacing: -0.4px;
+}
+button.linkFont {
+  padding: 5px 8px; // 28 px hit target
 }
 
 .centered {

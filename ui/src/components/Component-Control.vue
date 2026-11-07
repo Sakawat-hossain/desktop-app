@@ -74,13 +74,26 @@
             <!-- outside the scrolling box, so it stays at the bottom of the visible part -->
             <transition name="fade">
               <button
+                type="button"
                 title="Scroll down"
                 aria-label="Scroll down"
                 class="btnScrollDown"
                 v-if="isShowScrollButton"
                 v-on:click="onScrollDown()"
               >
-                <img src="@/assets/arrow-bottom.svg" alt="" />
+                <!-- the same 28 px button and chevron as the server list's -->
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </button>
             </transition>
           </div>
@@ -103,6 +116,11 @@ import PlanBar from "./blocks/block-plan-bar.vue";
 const sender = window.ipcSender;
 import { VpnStateEnum, VpnTypeEnum } from "@/store/types";
 import { capitalizeFirstLetter } from "@/helpers/helpers";
+import {
+  IsServerLocked,
+  IsHostLocked,
+  HostId,
+} from "@/helpers/helpers_premium";
 
 const viewTypeEnum = Object.freeze({
   default: "default",
@@ -113,8 +131,12 @@ const viewTypeEnum = Object.freeze({
 async function connect(me, isConnect) {
   try {
     me.isConnectProgress = true;
-    if (isConnect === true) await sender.Connect();
-    else await sender.Disconnect();
+    if (isConnect === true) {
+      // Free account: a selection it cannot use (e.g. kept from a Premium plan)
+      // falls back to the fastest usable server instead of failing
+      me.ensureUsableServers(true);
+      await sender.Connect();
+    } else await sender.Disconnect();
   } catch (e) {
     console.error(e);
     sender.showMessageBoxSync({
@@ -191,6 +213,18 @@ export default {
     isMultiHop: function () {
       return this.$store.state.settings.isMultiHop;
     },
+    // true when the account status is known and it is not Premium
+    isFreeAccount: function () {
+      return this.$store.getters["vpnState/isFreeAccount"] === true;
+    },
+    // needed for watcher: which servers the account may use ("" until the status is known)
+    accountTierKey: function () {
+      if (this.$store.getters["vpnState/isAccountStatusKnown"] !== true)
+        return "";
+      return this.$store.getters["account/isPremiumAccount"] === true
+        ? "premium"
+        : "free";
+    },
     // needed for watcher: things that change the height of the hero or of the cards
     // (split tunnel warning line, plan card, Wi-Fi row, the speed card hidden while paused,
     // the IP line that wraps for a long address or city) and so the room left to the cards
@@ -211,6 +245,11 @@ export default {
     conectionState(newValue, oldValue) {
       // the speed card appears/disappears with the connection: the cards area changes height
       setTimeout(() => this.recalcScrollButtonVisiblity(), 1000);
+
+      // Free account: a server kept while it was in use (e.g. the plan ended during
+      // the connection) is replaced now that it is not
+      if (newValue === VpnStateEnum.DISCONNECTED && newValue != oldValue)
+        this.ensureUsableServers();
 
       // show connection failure description:
 
@@ -237,6 +276,13 @@ export default {
     },
     cardsLayoutKey() {
       setTimeout(() => this.recalcScrollButtonVisiblity(), 1000);
+    },
+    // the account became Free (or Premium): keep the selection to servers it may use
+    accountTierKey: {
+      immediate: true,
+      handler(key) {
+        if (key) this.ensureUsableServers();
+      },
     },
   },
 
@@ -298,6 +344,15 @@ export default {
 
       setTimeout(this.recalcScrollButtonVisiblity, 1000);
     },
+    // Free account: keep the selected servers and hosts to ones it may use
+    // (runs in the main process; for a Premium account it only drops a host
+    // the app chose automatically). isBeforeConnect: a connect is about to start,
+    // so it applies even while the current connection is still up.
+    ensureUsableServers(isBeforeConnect) {
+      this.$store.dispatch("settings/ensureUsableServers", {
+        beforeConnect: isBeforeConnect === true,
+      });
+    },
     onServerChanged(server, isExitServer, serverHostName) {
       if (server == null || isExitServer == null) return;
       let hostId = null;
@@ -306,12 +361,34 @@ export default {
         hostId = serverHostName.split(".")[0];
       }
 
+      // Free account: a Premium-only location or a Premium host cannot be used;
+      // the server list shows the upgrade prompt for it, the selection stays
+      if (this.isFreeAccount) {
+        if (IsServerLocked(server, false)) return;
+        if (hostId) {
+          const host = (server.hosts || []).find((h) => HostId(h) === hostId);
+          if (IsHostLocked(host, false)) return;
+        }
+      }
+
+      // a host the app chose itself for a Free account counts as "no host chosen"
+      // (settings/ensureUsableServers), so choosing the same location again changes nothing
+      const settings = this.$store.state.settings;
+      const entryHostId =
+        settings.serverEntryHostIsAuto === true
+          ? null
+          : settings.serverEntryHostId;
+      const exitHostId =
+        settings.serverExitHostIsAuto === true
+          ? null
+          : settings.serverExitHostId;
+
       let needReconnect = false;
       if (!isExitServer) {
         if (
           !this.$store.state.settings.serverEntry ||
           this.$store.state.settings.serverEntry.gateway !== server.gateway ||
-          this.$store.state.settings.serverEntryHostId !== hostId ||
+          entryHostId !== hostId ||
           this.$store.state.settings.isRandomServer !== false
         ) {
           this.$store.dispatch("settings/isRandomServer", false);
@@ -323,7 +400,7 @@ export default {
         if (
           !this.$store.state.settings.serverExit ||
           this.$store.state.settings.serverExit.gateway !== server.gateway ||
-          this.$store.state.settings.serverExitHostId !== hostId ||
+          exitHostId !== hostId ||
           this.$store.state.settings.isRandomExitServer !== false
         ) {
           this.$store.dispatch("settings/isRandomExitServer", false);
@@ -436,11 +513,28 @@ div.cardsScroll > * {
 }
 
 // the global button is 'position: fixed' to the window bottom; here it sits at the
-// bottom of the visible cards, above the plan card
+// bottom of the visible cards, above the plan card. 28 px with a visible focus ring,
+// like the server list's scroll button (the global one is 24 px without an outline).
 button.btnScrollDown {
   position: absolute;
   bottom: 4px;
-  left: calc(50% - 12px);
+  left: calc(50% - 14px);
+  width: 28px;
+  height: 28px;
   margin: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--control-border);
+  background: var(--surface-color);
+}
+button.btnScrollDown svg {
+  display: block;
+  stroke: var(--text-soft);
+}
+button.btnScrollDown:hover {
+  background: var(--neutral-tint);
+}
+button.btnScrollDown:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
 }
 </style>

@@ -364,6 +364,7 @@ div.row {
   overflow: auto;
 
   margin-left: $back-btn-width;
+  margin-top: -6px; // the tab buttons have 6 px padding (hit target), text stays in place
 }
 .rightPanel {
   margin-top: 58px;
@@ -381,6 +382,8 @@ div.row {
 #backBtn {
   min-width: $back-btn-width;
   max-width: $back-btn-width;
+  min-height: 28px;
+  margin: -2px 0;
 
   display: flex;
   justify-content: center;
@@ -406,9 +409,9 @@ button.noBordersBtn {
 }
 button.tabTitleBtn {
   display: flex;
-  padding: 0px;
+  padding: 6px 0px;
 
-  margin-bottom: 19px;
+  margin-bottom: 7px;
 
   font-size: 14px;
   line-height: 17px;
@@ -420,6 +423,6 @@ button.activeBtn {
   color: var(--link-color);
 }
 div.version {
-  color: gray;
+  color: var(--text-muted);
 }
 </style>

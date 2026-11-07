@@ -22,6 +22,7 @@
 
 import { enumValueName, getDistanceFromLatLonInKm } from "../helpers/helpers";
 import { IsServerSupportIPv6 } from "@/helpers/helpers_servers";
+import { UsableHosts, IsServerLocked } from "@/helpers/helpers_premium";
 import { newTrafficState, nextTrafficState } from "@/helpers/traffic";
 import {
   VpnTypeEnum,
@@ -347,15 +348,47 @@ export default {
       return getActiveServers(state, rootState);
     },
 
+    // OvpnPlus Free / Premium.
+    // true when the daemon has sent the status of the current session's account
+    // (the account module starts with a placeholder status object without
+    // 'SessionTokenLastPart'; the 'session' mutation erases a stale one)
+    isAccountStatusKnown(state, getters, rootState) {
+      const s = rootState.account ? rootState.account.accountStatus : null;
+      return !!s && typeof s.SessionTokenLastPart === "string";
+    },
+    // true when the account status is known and the account is not Premium.
+    // Until the status arrives nothing is filtered, so the selection of a
+    // Premium account is never replaced while the app is starting.
+    isFreeAccount(state, getters, rootState, rootGetters) {
+      if (!getters.isAccountStatusKnown) return false;
+      return rootGetters["account/isPremiumAccount"] !== true;
+    },
+
+    // the active locations this account may use
+    // (Free account: without the locations whose hosts are all Premium)
+    usableActiveServers(state, getters, rootState) {
+      return filterUsableServers(
+        getActiveServers(state, rootState),
+        getters.isFreeAccount,
+      );
+    },
+
     // fastestServer returns: the server with the lowest latency
     // (looking for the active servers that have latency info)
     // If there is no latency info for any server:
     // - return the nearest server (if geolocation info is known)
     // - else: return the currently selected server (if applicable)
     // - else: return the first server in the list (as a fallback)
+    // A Free account only gets locations it may use (Premium-only ones are skipped).
     fastestServer(state, getters, rootState) {
       let servers = getActiveServers(state, rootState);
       if (servers == null || servers.length <= 0) return null;
+
+      if (getters.isFreeAccount) {
+        // when the account may use no location at all, keep the old behaviour
+        const usable = filterUsableServers(servers, true);
+        if (usable.length > 0) servers = usable;
+      }
 
       let skipSvrs = rootState.settings.serversFastestExcludeList;
       let retSvr = null;
@@ -607,14 +640,22 @@ export default {
       return getters.funcGetConnectionPortRanges();
     },
 
-    funcGetPing: (state) => (hostOrLocation) => {
+    funcGetPing: (state, getters) => (hostOrLocation) => {
       try {
         if (!hostOrLocation) return null;
         if (hostOrLocation.hosts) {
           // server (location)
           const s = hostOrLocation;
+          // Free account: the best ping among the hosts it may use (a location
+          // with Free and Premium hosts); a location it cannot use at all keeps
+          // the best ping of all its hosts
+          let hosts = s.hosts;
+          if (getters.isFreeAccount) {
+            const usable = UsableHosts(s, false);
+            if (usable.length > 0) hosts = usable;
+          }
           let best = null;
-          for (const host of s.hosts) {
+          for (const host of hosts) {
             let ping = state.hostsPings[host.host];
             if (!best || (ping && best > ping)) best = ping;
           }
@@ -626,6 +667,23 @@ export default {
         console.error(e);
         return null;
       }
+    },
+
+    // the host of a location this account may use with the lowest ping
+    // (the first usable host when no ping is known; null when none is usable)
+    funcGetBestUsableHost: (state, getters) => (location) => {
+      const hosts = UsableHosts(location, !getters.isFreeAccount);
+      let best = null;
+      let bestPing = null;
+      for (const h of hosts) {
+        if (!h) continue;
+        const ping = state.hostsPings[h.host];
+        if (ping > 0 && (bestPing == null || ping < bestPing)) {
+          best = h;
+          bestPing = ping;
+        }
+      }
+      return best || hosts.find((h) => !!h) || null;
     },
   },
 
@@ -738,6 +796,8 @@ export default {
         hashedPings[pings[i].Host] = pings[i].Ping;
       }
       context.commit("hostsPings", hashedPings);
+      // Free account on a Free + Premium location: the host chosen for it follows the pings
+      context.dispatch("settings/ensureUsableServers", null, { root: true });
     },
     // Split-Tunnelling
     splitTunnelling(state, val) {
@@ -836,6 +896,12 @@ function getActiveServers(state, rootState) {
   }
 
   return wgServers;
+}
+
+// the locations a Free account may use: not those whose hosts are all Premium
+function filterUsableServers(servers, isFreeAccount) {
+  if (!servers || !isFreeAccount) return servers || [];
+  return servers.filter((s) => s && !IsServerLocked(s, false));
 }
 
 function findServerByIp(servers, ip) {

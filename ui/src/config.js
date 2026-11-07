@@ -43,7 +43,7 @@ const Features = {
 };
 
 export default {
-  MinRequiredDaemonVer: "3.16.1",
+  MinRequiredDaemonVer: "1.0.0",
 
   Features,
 

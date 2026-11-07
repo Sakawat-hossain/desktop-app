@@ -41,6 +41,9 @@ type HostInfoBase struct {
 	Load         float32 `json:"load"`
 	V2RayHost    string  `json:"v2ray"`
 	ISP          string  `json:"isp"`
+	// OvpnPlus panel: display name of the host (e.g. "Dhaka #1") and whether it needs a Premium plan
+	Name      string `json:"name,omitempty"`
+	IsPremium bool   `json:"is_premium,omitempty"`
 }
 
 func (h HostInfoBase) GetHostInfoBase() HostInfoBase {
@@ -57,6 +60,9 @@ type ServerInfoBase struct {
 	Longitude float32 `json:"longitude"`
 
 	ISP string `json:"isp"`
+
+	// OvpnPlus panel: true when every host of this location needs a Premium plan
+	IsPremium bool `json:"is_premium,omitempty"`
 }
 
 func (s ServerInfoBase) GetServerInfoBase() ServerInfoBase {

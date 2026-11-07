@@ -1403,6 +1403,11 @@ async function Connect() {
       );
       store.dispatch("settings/serverExit", exitServers[randomIdx]);
     }
+
+    // Free account: never connect to a server or host it cannot use (e.g. one kept
+    // while it was in use when the plan ended). Every connect passes here (tray,
+    // map, a reconnect after a settings change); no change for a Premium account.
+    store.dispatch("settings/ensureUsableServers", { beforeConnect: true });
   } catch (e) {
     console.error("Failed to connect: ", e);
     // We have to request VPN status manually (to synchronize the VPN state in UI with the daemon state)

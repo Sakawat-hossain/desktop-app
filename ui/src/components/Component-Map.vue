@@ -84,8 +84,14 @@
         v-bind:class="{ blured: isBlured === 'true' }"
       ></canvas>
 
+      <!-- dot-pattern ocean (background) with the inline world map on it -->
       <div class="bigMapArea" ref="bigMapArea">
-        <img ref="map" class="map" :src="mapImage" @load="mapLoaded" />
+        <MapWorld
+          ref="mapWorld"
+          class="map"
+          :highlightIndex="connectedCountryIndex"
+          :serverCountries="serverCountryIndexes"
+        />
 
         <!-- Hidden element to calculate styled text size-->
         <div
@@ -95,70 +101,99 @@
         ></div>
 
         <div class="mapLocationsContainer" ref="mapLocationsContainer">
-          <!-- Location point -->
+          <!-- dashed line from the user's location to the selected server (not connected) -->
+          <svg
+            v-if="isMapLoaded && routeLine"
+            class="routeLine"
+            v-bind:class="{ routeLineMoving: routeLine.moving }"
+            :width="routeLine.width"
+            :height="routeLine.height"
+            :viewBox="`0 0 ${routeLine.width} ${routeLine.height}`"
+            :style="{ left: routeLine.left + 'px', top: routeLine.top + 'px' }"
+            aria-hidden="true"
+          >
+            <path :d="routeLine.d" />
+          </svg>
+
+          <!-- Location point (servers without a marker) -->
           <div
-            v-show="isMapLoaded"
+            v-show="isMapLoaded && !isZooming"
             class="mapLocationPoint"
-            v-for="l of locationsToDisplay"
+            v-for="l of plainLocations"
             @wheel="wheel"
             v-on:click="locationClicked(l.location)"
-            v-bind:key="'point_' + l.location.city"
+            @mouseenter="onLocationEnter(l)"
+            @mouseleave="onLocationLeave(l)"
+            v-bind:key="'point_' + locationKey(l.location)"
             v-bind:class="{
-              mapLocationPointCurrent: l.location === location,
-              mapLocationPointConnected:
-                l.location === connectedLocation && isConnected,
+              mapLocationPointHovered: isHovered(l),
+              mapLocationLocked: l.locked,
             }"
-            :style="{
-              left: l.x - l.pointRadius + 'px',
-              top: l.y - l.pointRadius + 'px',
-              height: l.pointRadius * 2 + 'px',
-              width: l.pointRadius * 2 + 'px',
-            }"
+            :style="{ left: l.x + 'px', top: l.y + 'px' }"
           ></div>
           <!-- Location name -->
           <div
-            v-show="isMapLoaded"
+            v-show="isMapLoaded && !isZooming"
             class="mapLocationName"
-            v-for="l of locationsToDisplay"
+            v-for="l of plainLocations"
             @wheel="wheel"
             v-on:click="locationClicked(l.location)"
-            v-bind:key="'name_' + l.location.city"
+            @mouseenter="onLocationEnter(l)"
+            @mouseleave="onLocationLeave(l)"
+            v-bind:key="'name_' + locationKey(l.location)"
             v-bind:class="{
-              mapLocationNameCurrent: l.location === location,
-              mapLocationNameConnected:
-                l.location === connectedLocation && isConnected,
+              mapLocationNameHovered: isHovered(l),
+              mapLocationLocked: l.locked,
             }"
             :style="{ left: l.left + 'px', top: l.top + 'px' }"
           >
             {{ l.width > 0 ? l.location.city : "" }}
           </div>
 
-          <!-- Animation elements -->
-          <div
-            v-show="isMapLoaded"
-            ref="animationCurrLoactionCirecle"
-            class="mapLocationCircleCurrLocation"
-          ></div>
+          <!-- the user's own location -->
+          <MapMarker
+            v-if="isMapLoaded && userMarker"
+            kind="user"
+            :x="userMarker.x"
+            :y="userMarker.y"
+            :caption="userMarker.caption"
+            :tone="userMarker.tone"
+            :title="userMarker.title"
+            :countryCode="userMarker.code"
+            :code="userMarker.code"
+            :label="userMarker.label"
+            @click="locationClicked(userMarker.location)"
+            @wheel="wheel"
+          />
 
-          <div
-            v-show="isMapLoaded"
-            ref="animationSelectedCirecle1"
-            class="mapLocationCircleSelectedSvr"
-          ></div>
-          <div
-            v-show="isMapLoaded"
-            ref="animationSelectedCirecle2"
-            class="mapLocationCircleSelectedSvr"
-          ></div>
+          <!-- the selected / connecting / connected server -->
+          <MapMarker
+            v-if="isMapLoaded && serverMarker"
+            :kind="serverMarker.kind"
+            :x="serverMarker.x"
+            :y="serverMarker.y"
+            :caption="serverMarker.caption"
+            :title="serverMarker.title"
+            :countryCode="serverMarker.code"
+            :code="serverMarker.code"
+            :tier="serverMarker.tier"
+            :wave="serverMarker.wave"
+            :pulse="serverMarker.pulse"
+            :label="serverMarker.label"
+            @click="locationClicked(serverMarker.location)"
+            @wheel="wheel"
+          />
 
-          <div
-            v-show="isMapLoaded"
-            ref="animationConnectedWaves"
-            class="mapLocationCircleConnectedWaves"
-            v-bind:class="{
-              mapLocationCircleConnectedWavesRunning: isConnected,
-            }"
-          ></div>
+          <!-- label of the server under the mouse -->
+          <MapHoverTip
+            v-if="isMapLoaded && hoverTipInfo"
+            ref="hoverTip"
+            :title="hoverTipInfo.title"
+            :countryCode="hoverTipInfo.code"
+            :tier="hoverTipInfo.tier"
+            :locked="hoverTipInfo.locked"
+            :style="{ left: hoverTip.left + 'px', top: hoverTip.top + 'px' }"
+          />
         </div>
       </div>
     </div>
@@ -166,17 +201,30 @@
 </template>
 
 <script>
-import { VpnStateEnum, ColorTheme } from "@/store/types";
-import { IsOsDarkColorScheme } from "@/helpers/renderer";
-import { CheckAndNotifyInaccessibleServer } from "@/helpers/helpers_servers";
+import { VpnStateEnum } from "@/store/types";
+import {
+  CheckAndNotifyInaccessibleServer,
+  CheckAndNotifyLockedServer,
+} from "@/helpers/helpers_servers";
+import {
+  IsHostPremium,
+  IsServerLocked,
+  ServerTier,
+} from "@/helpers/helpers_premium";
 
 const sender = window.ipcSender;
 import popupControl from "@/components/controls/control-map-popup.vue";
 import GeolocationInfoControl from "@/components/controls/control-geolocation-info.vue";
 import BlockSpeedGraph from "@/components/blocks/block-speed-graph.vue";
-
-import Image_world_map_dark from "@/assets/world_map_dark.svg";
-import Image_world_map_light from "@/assets/world_map_light.svg";
+import MapWorld from "@/components/map/map-world.vue";
+import MapMarker from "@/components/map/map-marker.vue";
+import MapHoverTip from "@/components/map/map-hover-tip.vue";
+import {
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  countryIndexOfLocation,
+  countryBoxOfLocation,
+} from "@/components/map/map-geometry";
 
 import config from "@/config";
 
@@ -187,15 +235,102 @@ import {
 } from "@/helpers/helpers";
 
 const defaultZoomScale = 0.41;
+// Not connected: the user's location and the selected server are framed together.
+// The map zooms out (never in beyond the default) until both fit, but not below this.
+const minFrameScale = 0.15;
+// room kept free between the framed markers (with their label cards) and the map edges
+const frameMarginPx = 16;
+// Connected: the map zooms in on the connected country until its box takes about
+// this part of the visible map (width and height), between the default zoom and this.
+const countryViewPart = 0.5;
+const maxCountryScale = 0.8;
+// how long the map takes to move (and zoom) to a new view
+const moveDurationMs = 600;
 // gap between the bottom panel ("Connection details" card) and the map bottom edge (see .bottomPanel)
 const bottomPanelGapPx = 20;
 // minimal free map height above the card to keep centred locations above it
 const minVisibleMapHeightPx = 80;
+// plain server dot: an 8 px dot in a 4 px ring (see .mapLocationPoint);
+// 5 px is the radius other names keep clear of
+const PointRadius = 5;
+
+// Free / Premium mark: the host's own when a host is known, else the location's
+function tierOf(server, host) {
+  if (host) return IsHostPremium(host) ? "Premium" : "Free";
+  if (!server) return null;
+  return ServerTier(server);
+}
+function tierText(tier) {
+  if (tier === "Mixed") return "Free and Premium";
+  return tier || "";
+}
+
+// a location's point on the map, in map units (MAP_WIDTH x MAP_HEIGHT), or null
+function mapUnitsPoint(location) {
+  if (location == null) return null;
+  const lon = Number(location.longitude);
+  const lat = Number(location.latitude);
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  return getCoordinatesBy(lon, lat, MAP_WIDTH, MAP_HEIGHT);
+}
+
+// Box { l, t, r, b } (map units) of the dashed line from the user's location 'u' to the
+// server 's': the same curve as the 'routeLine' computed property draws.
+function routeBox(u, s) {
+  const box = {
+    l: Math.min(u.x, s.x),
+    t: Math.min(u.y, s.y),
+    r: Math.max(u.x, s.x),
+    b: Math.max(u.y, s.y),
+  };
+  const dx = s.x - u.x;
+  const dy = s.y - u.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (!(len > 0)) return box;
+  let nx = -dy / len;
+  let ny = dx / len;
+  if (ny < 0 || (ny === 0 && nx < 0)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  const bow = len * 0.4;
+  const c = { x: (u.x + s.x) / 2 + nx * bow, y: (u.y + s.y) / 2 + ny * bow };
+  // the extreme of the quadratic curve on each axis (when it is between the ends)
+  for (const axis of ["x", "y"]) {
+    const den = u[axis] - 2 * c[axis] + s[axis];
+    if (Math.abs(den) < 1e-9) continue;
+    const t = (u[axis] - c[axis]) / den;
+    if (t <= 0 || t >= 1) continue;
+    const v =
+      (1 - t) * (1 - t) * u[axis] + 2 * (1 - t) * t * c[axis] + t * t * s[axis];
+    if (axis === "x") {
+      box.l = Math.min(box.l, v);
+      box.r = Math.max(box.r, v);
+    } else {
+      box.t = Math.min(box.t, v);
+      box.b = Math.max(box.b, v);
+    }
+  }
+  return box;
+}
+
+// Centre 'c' of a view 2 x 'half' wide, moved as little as possible so that the content
+// from 'lo' to 'hi' is inside it with 'margin' to spare (centred when it cannot be).
+function clampCentre(c, lo, hi, half, margin) {
+  const min = hi + margin - half;
+  const max = lo - margin + half;
+  if (min > max) return (lo + hi) / 2;
+  return Math.min(Math.max(c, min), max);
+}
+
 export default {
   components: {
     popupControl,
     GeolocationInfoControl,
     BlockSpeedGraph,
+    MapWorld,
+    MapMarker,
+    MapHoverTip,
   },
   props: {
     isBlured: String,
@@ -205,8 +340,6 @@ export default {
   },
 
   data: () => ({
-    isDarkTheme: false,
-
     selectedPopupLocation: null,
     isMapLoaded: false,
     isPopupVisible: false,
@@ -220,23 +353,13 @@ export default {
     mapLocationsContainer: null,
     hiddenTestTextMeter: null,
 
-    // refs to two animation circles. First can have 'grow' style.
-    // The second must have 'shrink' style.
-    animSelCircles: [],
-    animCurrLocCircle: null,
-    animConnectedWaves: null,
-
     scale: defaultZoomScale,
 
-    scrollTo: {
-      left: -1,
-      top: -1,
-      isPopupRequired: false,
-      startTimeMs: null,
-      startLeft: -1,
-      startTop: -1,
-      maxDurationMs: 0,
-    },
+    // the running move of the map to a new view (see startView()), or null
+    scrollTo: null,
+    // true while a move changes the zoom: the plain server dots and names are hidden
+    // (they are placed for one zoom) and placed again when the move ends
+    isZooming: false,
 
     moving: false,
     startMoveX: 0,
@@ -249,6 +372,12 @@ export default {
       mapTopOffset: 0.0,
     },
 
+    // the server under the mouse: { location, x, y, left, top } (px in the locations layer)
+    hoverTip: null,
+
+    // keeps the map centred when its container changes size
+    resizeObserver: null,
+
     locationsToDisplay: [
       /*{
         location,
@@ -259,16 +388,14 @@ export default {
         pointRadius,
         circleRadius,
         width: textWidth,
-        height: textHeight
+        height: textHeight,
+        locked,          // a Free account cannot use this server
+        marker,          // true: the area of a marker (pin, label card), not a plain dot
       } */
     ],
   }),
 
   computed: {
-    mapImage: function () {
-      if (this.isDarkTheme) return Image_world_map_dark;
-      return Image_world_map_light;
-    },
     servers: function () {
       return this.$store.getters["vpnState/activeServers"];
     },
@@ -310,6 +437,13 @@ export default {
     isRandomExitServer: function () {
       return this.$store.state.settings.isRandomExitServer;
     },
+    // Fastest / Random server mode: the server is picked on connect,
+    // so the one in the settings is not shown as "selected" while disconnected
+    isServerModeSelected: function () {
+      const s = this.$store.state.settings;
+      if (s.isMultiHop) return s.isRandomExitServer === true;
+      return s.isFastestServer === true || s.isRandomServer === true;
+    },
 
     isPaused: function () {
       return this.$store.getters["vpnState/isPaused"];
@@ -324,9 +458,14 @@ export default {
     isLoggedIn: function () {
       return this.$store.getters["account/isLoggedIn"];
     },
-    // needed for watcher
-    connectionState: function () {
-      return this.$store.state.vpnState.connectionState;
+    // Same rule as the server list and the store ("vpnState/isFreeAccount"): until the
+    // account status is known nothing is locked, so a Premium account never sees its
+    // servers locked while the app is starting (or when the status cannot be loaded).
+    isPremiumAccount: function () {
+      const free = this.$store.getters["vpnState/isFreeAccount"];
+      if (free === true) return false;
+      if (free === false) return true;
+      return this.$store.getters["account/isPremiumAccount"] === true;
     },
     isConnecting: function () {
       return this.$store.getters["vpnState/isConnecting"];
@@ -349,34 +488,233 @@ export default {
     isMinimizedUI: function () {
       return this.$store.state.settings.minimizedUI;
     },
+
+    // ---------------- countries ----------------
+    // countries (indexes of the map paths) that have servers: drawn a little lighter
+    serverCountryIndexes: function () {
+      const set = new Set();
+      for (const s of this.servers || []) {
+        const i = countryIndexOfLocation(s);
+        if (i >= 0) set.add(i);
+      }
+      return Array.from(set).sort((a, b) => a - b);
+    },
+    // the country of the connected server: filled
+    connectedCountryIndex: function () {
+      if (!this.isConnected || !this.connectedLocation) return -1;
+      return countryIndexOfLocation(this.connectedLocation);
+    },
+
+    // ---------------- markers ----------------
+    // the host chosen in the server list (null: the app picks one)
+    selectedHost: function () {
+      return (
+        this.$store.getters[
+          this.$store.state.settings.isMultiHop
+            ? "settings/selectedExitHost"
+            : "settings/selectedEntryHost"
+        ] || null
+      );
+    },
+    // the host the tunnel is connected to, as the daemon reports it
+    connectedHost: function () {
+      const srv = this.connectedLocation;
+      const ci = this.$store.state.vpnState.connectionInfo;
+      if (!srv || !Array.isArray(srv.hosts) || !ci) return null;
+      if (this.$store.state.settings.isMultiHop) {
+        if (!ci.ExitHostname) return null;
+        return srv.hosts.find((h) => h && h.hostname === ci.ExitHostname) || null;
+      }
+      if (!ci.ServerIP) return null;
+      return srv.hosts.find((h) => h && h.host === ci.ServerIP) || null;
+    },
+
+    // The selected server's marker: outlined pin ("SELECTED", "CONNECTING", "PAUSED")
+    // or, when connected, the gold pin with the "CONNECTED" card.
+    serverMarker: function () {
+      const server = this.selectedServer;
+      if (!server) return null;
+
+      let kind = "selected";
+      let caption = "SELECTED";
+      let state = "Selected server";
+      let host = this.selectedHost;
+      let wave = false;
+      let pulse = false;
+      if (this.isConnected) {
+        kind = "connected";
+        caption = "CONNECTED";
+        state = "Connected server";
+        host = this.connectedHost || host;
+        wave = true;
+      } else if (this.isPaused) {
+        caption = "PAUSED";
+        state = "Paused connection";
+      } else if (this.isInProgress) {
+        // Fastest / Random: the server is not known while the servers are being pinged
+        if (
+          this.isServerModeSelected &&
+          this.$store.state.vpnState.isPingingServers === true
+        )
+          return null;
+        if (this.isConnecting) {
+          caption = "CONNECTING";
+          state = "Connecting to";
+          pulse = true;
+        } else if (this.$store.getters["vpnState/isDisconnecting"]) {
+          caption = "DISCONNECTING";
+          state = "Disconnecting from";
+        }
+      } else if (this.isServerModeSelected) return null;
+
+      const p = this.getLocationXYCoordinates(server);
+      if (!p) return null;
+
+      const tier = tierOf(server, host);
+      const title = server.city || server.country || "";
+      const code = String(server.country_code || "").toUpperCase();
+      return {
+        location: server,
+        kind,
+        x: p.x,
+        y: p.y,
+        caption,
+        title,
+        code,
+        tier,
+        wave,
+        pulse,
+        label: [state + ": " + title, code, tierText(tier)]
+          .filter((v) => !!v)
+          .join(", "),
+      };
+    },
+
+    // The user's own location (known only while not connected): "UNPROTECTED"
+    userMarker: function () {
+      const l = this.location;
+      if (!l) return null;
+      const p = this.getLocationXYCoordinates(l);
+      if (!p) return null;
+      const unprotected = !this.isConnected;
+      const code = String(l.country_code || "").toUpperCase();
+      const title = l.city || l.country || "Your location";
+      return {
+        location: l,
+        kind: "user",
+        x: p.x,
+        y: p.y,
+        caption: unprotected ? "UNPROTECTED" : "YOUR LOCATION",
+        tone: unprotected ? "danger" : "neutral",
+        title,
+        code,
+        label: [
+          "Your location: " + title,
+          code,
+          unprotected ? "unprotected" : "",
+        ]
+          .filter((v) => !!v)
+          .join(", "),
+      };
+    },
+
+    // things that change the room the markers take (names of other servers keep clear of it)
+    markersLayoutKey: function () {
+      const u = this.userMarker;
+      const s = this.serverMarker;
+      return [
+        u ? u.caption + "/" + u.title + "/" + u.code : "",
+        s
+          ? [s.kind, s.caption, s.title, s.code, s.tier, s.location.gateway].join("/")
+          : "",
+      ].join("|");
+    },
+
+    // dashed connection line: the user's location -> the selected server (quadratic curve)
+    routeLine: function () {
+      const u = this.userMarker;
+      const s = this.serverMarker;
+      if (!u || !s || this.isConnected || s.kind !== "selected") return null;
+
+      const dx = s.x - u.x;
+      const dy = s.y - u.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 24) return null; // the markers overlap: no room for a line
+
+      // bend the line to one side (downwards) by 40 % of its length
+      let nx = -dy / len;
+      let ny = dx / len;
+      if (ny < 0 || (ny === 0 && nx < 0)) {
+        nx = -nx;
+        ny = -ny;
+      }
+      const bow = len * 0.4;
+      const cx = (u.x + s.x) / 2 + nx * bow;
+      const cy = (u.y + s.y) / 2 + ny * bow;
+
+      const pad = 3;
+      const left = Math.floor(Math.min(u.x, s.x, cx) - pad);
+      const top = Math.floor(Math.min(u.y, s.y, cy) - pad);
+      const right = Math.ceil(Math.max(u.x, s.x, cx) + pad);
+      const bottom = Math.ceil(Math.max(u.y, s.y, cy) + pad);
+      const f = (v) => Math.round(v * 10) / 10;
+      return {
+        left,
+        top,
+        width: right - left,
+        height: bottom - top,
+        d: `M${f(u.x - left)} ${f(u.y - top)}Q${f(cx - left)} ${f(cy - top)} ${f(s.x - left)} ${f(s.y - top)}`,
+        moving: s.pulse === true,
+      };
+    },
+
+    plainLocations: function () {
+      return this.locationsToDisplay.filter((l) => l.marker !== true);
+    },
+
+    hoverTipInfo: function () {
+      const t = this.hoverTip;
+      if (!t || !t.location) return null;
+      const l = t.location;
+      return {
+        title: l.city || l.country || "",
+        code: String(l.country_code || "").toUpperCase(),
+        tier: l.gateway ? tierOf(l, null) : null,
+        locked: !!l.gateway && IsServerLocked(l, this.isPremiumAccount),
+      };
+    },
   },
 
   mounted() {
-    // COLOR SCHEME
-    window.matchMedia("(prefers-color-scheme: dark)").addListener(() => {
-      this.updateColorScheme();
-    });
-    this.updateColorScheme();
-
     this.canvas = this.$refs.canvas;
 
     this.popup = this.$refs.popup;
     this.bigMapArea = this.$refs.bigMapArea;
-    this.map = this.$refs.map;
+    this.map = this.$refs.mapWorld ? this.$refs.mapWorld.$el : null;
     this.combinedDiv = this.$refs.combined;
     this.mapLocationsContainer = this.$refs.mapLocationsContainer;
     this.hiddenTestTextMeter = this.$refs.hiddenTestTextMeter;
-
-    this.animSelCircles.push(this.$refs.animationSelectedCirecle1);
-    this.animSelCircles.push(this.$refs.animationSelectedCirecle2);
-    this.animCurrLocCircle = this.$refs.animationCurrLoactionCirecle;
-    this.animConnectedWaves = this.$refs.animationConnectedWaves;
 
     // resize canvas on window resize
     // (this method should be called each time when main window resizing)
     this.windowResizing();
 
-    this.updateAnimations();
+    // the map is inline: it is ready now
+    this.mapLoaded();
+
+    // The map can mount before the window has grown to its full width ("Show map"):
+    // keep the point in the middle of the map in the middle when the size changes.
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => this.onMapResize());
+      this.resizeObserver.observe(this.combinedDiv);
+    }
+
+    // names are measured with the UI font: measure again once it is loaded
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        if (this.combinedDiv && this.combinedDiv.isConnected) this.updateCities();
+      });
+    }
   },
 
   created: function () {
@@ -384,6 +722,10 @@ export default {
   },
   unmounted: function () {
     window.removeEventListener("mousemove", this.windowsmousemove);
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
   },
 
   watch: {
@@ -393,32 +735,33 @@ export default {
       this.updateCities();
     },
 
-    connectedLocation() {
+    connectedLocation(newVal, oldVal) {
       this.updateCities();
-      this.updateAnimations();
-      this.centerServer(this.connectedLocation);
+      // connected (or connected to another server): the server, zoomed in on its country.
+      // Not when the server list is refreshed (the daemon does it every hour): the same
+      // server then comes as a new object, and the user's zoom and drag must stay.
+      if (newVal && (!oldVal || oldVal.gateway !== newVal.gateway))
+        this.showState(newVal);
     },
 
     selectedServer(newVal, oldVal) {
       this.updateCities();
-      this.updateAnimations();
       if (!oldVal || (newVal && oldVal.gateway !== newVal.gateway))
-        this.centerServer(this.selectedServer);
+        this.showState(this.selectedServer);
     },
     isFastestServer() {
       if (this.isFastestServer !== true && this.isRandomExitServer != true)
-        this.centerServer(this.selectedServer);
+        this.showState(this.selectedServer);
     },
     isRandomExitServer() {
       if (this.isFastestServer !== true && this.isRandomExitServer != true)
-        this.centerServer(this.selectedServer);
+        this.showState(this.selectedServer);
     },
     isMinimizedUI() {
       if (!this.isMinimizedUI) this.centerCurrentLocation();
     },
     location() {
       this.updateCities();
-      this.updateAnimations();
       setTimeout(() => {
         this.centerCurrentLocation();
       }, 300);
@@ -426,17 +769,20 @@ export default {
     isLoggedIn() {
       this.centerCurrentLocation();
     },
-    async isPaused() {
-      this.updateAnimations();
+    // a marker appeared, disappeared or changed its card: place the other names again
+    markersLayoutKey() {
+      this.updateCities();
     },
-    connectionState() {
-      this.updateAnimations();
+    isPremiumAccount() {
+      // locked servers are dimmed
+      this.updateCities();
     },
     isConnecting() {
       // AR-APP-40 - When app starts connecting, ... map should move to position of selected gateway
+      // (with the user's location known: both stay framed, the dashed line runs to the server)
       if (this.isConnecting)
         setTimeout(() => {
-          this.centerServer(this.selectedServer);
+          this.showState(this.selectedServer);
         }, 300);
     },
     isConnected() {
@@ -447,17 +793,28 @@ export default {
         }, 300);
       }
     },
+    // Disconnected (or paused): leave the zoom of the connected country. The user's
+    // location is usually being looked up again now: its arrival frames both markers.
+    isDisconnected() {
+      if (this.isDisconnected)
+        setTimeout(() => {
+          this.centerCurrentLocation();
+        }, 300);
+    },
+    // the location lookup ended without a location: the selected server alone
+    isRequestingLocation() {
+      if (!this.isRequestingLocation && !this.location && !this.isConnected)
+        this.centerCurrentLocation();
+    },
   },
 
   methods: {
     mapLoaded() {
-      const mapFullW = this.map.naturalWidth;
-      const mapFullH = this.map.naturalHeight;
-      // scale map
-      this.map.style.width = `${mapFullW * this.scale}px`;
-      // fit locations container to map scalled size
-      this.mapLocationsContainer.style.width = `${mapFullW * this.scale}px`;
-      this.mapLocationsContainer.style.height = `${mapFullH * this.scale}px`;
+      if (!this.map) return;
+      const mapFullW = MAP_WIDTH;
+      const mapFullH = MAP_HEIGHT;
+      // scale map (and fit locations container to map scalled size)
+      this.applyScale(this.scale);
 
       // To be able to scroll any direction with no border limits,
       // we are creating big scrolling area and map will be placed on center of it
@@ -473,9 +830,27 @@ export default {
 
       this.updateCities();
       this.centerCurrentLocation(true);
-      this.updateAnimations();
 
       this.isMapLoaded = true;
+    },
+    onMapResize() {
+      const c = this.canvas;
+      if (c == null || !this.combinedDiv) return;
+      const oldW = c.width;
+      const oldH = c.height;
+      this.windowResizing();
+      if (c.width === oldW && c.height === oldH) return;
+      this.stopScroll();
+      this.isPopupVisible = false;
+      this.hoverTip = null;
+      // the map had no room before (mounted while the window was still compact):
+      // centre it now, as on load
+      if (oldW < minVisibleMapHeightPx || oldH < minVisibleMapHeightPx) {
+        this.centerCurrentLocation(true);
+        return;
+      }
+      this.combinedDiv.scrollLeft -= (c.width - oldW) / 2;
+      this.combinedDiv.scrollTop -= (c.height - oldH) / 2;
     },
     windowResizing() {
       // This method should be called each time when main window resizing
@@ -488,12 +863,6 @@ export default {
       // update canvas size
       c.width = c.clientWidth;
       c.height = c.clientHeight;
-    },
-    updateColorScheme() {
-      let scheme = sender.ColorScheme();
-      if (scheme === ColorTheme.system) {
-        this.isDarkTheme = IsOsDarkColorScheme();
-      } else this.isDarkTheme = scheme === ColorTheme.dark;
     },
     onAccountRenew() {
       sender.shellOpenExternal(config.URLAccount);
@@ -515,6 +884,15 @@ export default {
 
     async connect(location) {
       this.isPopupVisible = false;
+      // a Free account cannot use a location whose hosts are all Premium:
+      // say so ("<City> is Premium", Upgrade / Not now) instead of connecting
+      if (
+        location?.gateway &&
+        IsServerLocked(location, this.isPremiumAccount)
+      ) {
+        await CheckAndNotifyLockedServer(location);
+        return;
+      }
       try {
         // check if we can change server (for multihop)
         var settings = this.$store.state.settings;
@@ -557,6 +935,7 @@ export default {
       if (this.$store.getters["account/isLoggedIn"] !== true) return;
       this.stopScroll();
       this.isPopupVisible = false;
+      this.hoverTip = null;
       this.startMoveX = this.lastMoveX = e.offsetX;
       this.startMoveY = this.lastMoveY = e.offsetY;
       this.moving = true;
@@ -584,6 +963,8 @@ export default {
 
       if (this.moving) {
         if (this.map != null) {
+          const mapFullW = MAP_WIDTH;
+          const mapFullH = MAP_HEIGHT;
           let offsetX = e.offsetX;
           let offsetY = e.offsetY;
           if (e.toElement !== this.canvas) {
@@ -602,8 +983,8 @@ export default {
             // (minimum visible right map part = 30% of natural width)
             (scrollLeftOffset > 0 &&
               ((newScrollLeft - this.mapPos.mapLeftOffset) / this.scale <
-                this.map.naturalWidth * 0.7 ||
-                this.map.naturalWidth * this.scale -
+                mapFullW * 0.7 ||
+                mapFullW * this.scale -
                   (newScrollLeft - this.mapPos.mapLeftOffset) >
                   this.canvas.width)) ||
             // map moving left
@@ -612,7 +993,7 @@ export default {
               (newScrollLeft -
                 this.mapPos.mapLeftOffset +
                 this.canvas.width -
-                this.map.naturalWidth * 0.3 * this.scale >
+                mapFullW * 0.3 * this.scale >
                 0 ||
                 newScrollLeft > this.mapPos.mapLeftOffset))
           ) {
@@ -628,8 +1009,8 @@ export default {
             // (2249 pixels at the button of the map is just ocean. No necessary to show it)
             (scrollTopOffset > 0 &&
               ((newScrollTop - this.mapPos.mapTopOffset) / this.scale <
-                (this.map.naturalHeight - 2249) * 0.7 ||
-                (this.map.naturalHeight - 2249) * this.scale -
+                (mapFullH - 2249) * 0.7 ||
+                (mapFullH - 2249) * this.scale -
                   (newScrollTop - this.mapPos.mapTopOffset) >
                   this.canvas.height)) ||
             // map moving top
@@ -638,7 +1019,7 @@ export default {
               (newScrollTop -
                 this.mapPos.mapTopOffset +
                 this.canvas.height -
-                this.map.naturalHeight * 0.3 * this.scale >
+                mapFullH * 0.3 * this.scale >
                 0 ||
                 newScrollTop > this.mapPos.mapTopOffset))
           ) {
@@ -653,6 +1034,20 @@ export default {
 
     async locationClicked(location) {
       if (this.$store.getters["account/isLoggedIn"] !== true) return;
+
+      // A Free account cannot use this location (all its hosts are Premium): do not
+      // select or connect it; say so instead ("<City> is Premium" with Upgrade, which
+      // opens the account page, and Not now). The map does not move, so the hover
+      // label under the mouse keeps showing the lock.
+      if (
+        location?.gateway &&
+        IsServerLocked(location, this.isPremiumAccount)
+      ) {
+        await CheckAndNotifyLockedServer(location);
+        return;
+      }
+
+      this.hoverTip = null;
 
       // does selected VPN server location?
       if (location?.gateway) {
@@ -689,158 +1084,441 @@ export default {
 
       if (this.location == location) {
         // center current location and show popup
-        this.centerCurrentLocation();
+        this.centerServer(location, false, true);
+      } else if (
+        location?.gateway &&
+        this.selectedServer &&
+        location.gateway === this.selectedServer.gateway
+      ) {
+        // the selected (or connected) server: frame it as the state wants
+        // (not connected: together with the user's location)
+        this.showState(location);
       } else {
         // center clicked server location
         this.centerServer(location);
       }
     },
 
-    // ================= SCROLLING ====================
-    centerCurrentLocation(noAnimation) {
-      if (!this.isConnected && this.location != null) {
-        this.centerServer(this.location, noAnimation, true);
-      } else if (
-        !this.isRequestingLocation ||
-        (this.combinedDiv.scrollLeft == 0 && this.combinedDiv.scrollTop == 0)
-      ) {
-        this.centerServer(this.selectedServer, noAnimation);
-      }
+    // ================= HOVER LABEL ====================
+    locationKey(location) {
+      if (!location) return "";
+      return location.gateway || location.city || "";
     },
-    centerServer(server, noAnimation, isPopupRequired) {
-      if (server == null) return;
-      if (noAnimation != null && noAnimation) {
-        this.centerServerNow(server, true, isPopupRequired);
-        return;
-      }
-      // Watchers call this before the DOM update, and the "Connection details" card can change
-      // its height in that same update (e.g. the speed section appears on connect):
-      // measure the card once the DOM is updated.
-      this.$nextTick(() => {
-        this.centerServerNow(server, false, isPopupRequired);
+    isHovered(l) {
+      return this.hoverTip != null && this.hoverTip.location === l.location;
+    },
+    onLocationEnter(l) {
+      if (this.moving || !l || !l.location) return;
+      this.hoverTip = {
+        location: l.location,
+        x: l.x,
+        y: l.y,
+        // under the dot, clear of the mouse pointer
+        left: l.x - 7.5,
+        top: l.y + 25,
+      };
+      this.$nextTick(() => this.fitHoverTip());
+    },
+    onLocationLeave(l) {
+      if (this.hoverTip && l && this.hoverTip.location === l.location)
+        this.hoverTip = null;
+    },
+    // keep the hover label inside the visible map (above the "Connection details" card)
+    fitHoverTip() {
+      const tip = this.hoverTip;
+      const ref = this.$refs.hoverTip;
+      const el = ref ? ref.$el : null;
+      if (!tip || !el || !this.combinedDiv) return;
+
+      const margin = 8;
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      const viewLeft = this.combinedDiv.scrollLeft - this.mapPos.mapLeftOffset;
+      const viewTop = this.combinedDiv.scrollTop - this.mapPos.mapTopOffset;
+      const viewRight = viewLeft + this.combinedDiv.clientWidth;
+      const viewBottom = viewTop + this.getVisibleMapHeight();
+
+      let left = tip.x - 7.5;
+      if (left + w > viewRight - margin) left = viewRight - margin - w;
+      if (left < viewLeft + margin) left = viewLeft + margin;
+      let top = tip.y + 25;
+      // no room under the dot: above it
+      if (top + h > viewBottom - margin) top = tip.y - 17 - h;
+
+      if (left !== tip.left || top !== tip.top)
+        this.hoverTip = { ...tip, left, top };
+    },
+
+    // ================= SCROLLING ====================
+    // Moves the map to the view of the current state (load, "Center map", location arrival,
+    // connect / disconnect, ...):
+    // - connected: the server in the middle, zoomed in on its country;
+    // - not connected, a server selected and the user's location known: both, with their cards;
+    // - else (IVPN's behaviour): the user's location (with its popup) or the selected server.
+    centerCurrentLocation(noAnimation) {
+      this.whenLaidOut(noAnimation, () => {
+        if (this.showStateNow(noAnimation)) return;
+        if (!this.isConnected && this.location != null) {
+          this.centerServerNow(
+            this.location,
+            noAnimation,
+            true,
+            this.disconnectedScale(),
+          );
+        } else if (
+          !this.isRequestingLocation ||
+          (this.combinedDiv.scrollLeft == 0 && this.combinedDiv.scrollTop == 0)
+        ) {
+          this.centerServerNow(
+            this.selectedServer,
+            noAnimation,
+            false,
+            this.isConnected ? null : this.disconnectedScale(),
+          );
+        }
       });
     },
-    centerServerNow(server, noAnimation, isPopupRequired) {
-      if (server == null) return;
-      // the map can be hidden (unmounted) before a deferred call runs
-      if (!this.combinedDiv || !this.combinedDiv.isConnected) return;
-      this.windowResizing(); // update canvas size
-      let point = getCoordinatesBy(
-        server.longitude,
-        server.latitude,
-        this.scale * this.map.naturalWidth,
-        this.scale * this.map.naturalHeight,
-      );
-
-      // The "Connection details" card covers the bottom of the map:
-      // put the location in the middle of the visible part above it.
-      const centerY = this.getVisibleMapCenterY();
-
-      let scrollLeft =
-        this.mapPos.mapLeftOffset + point.x - this.canvas.width / 2;
-      let scrollTop = this.mapPos.mapTopOffset + point.y - centerY;
-
-      if (noAnimation != null && noAnimation) {
-        this.stopScroll();
-        this.combinedDiv.scrollLeft = scrollLeft;
-        this.combinedDiv.scrollTop = scrollTop;
-
-        // Show popup for centered location
-        this.showPopupForGeoLocation(server, isPopupRequired);
-      } else {
-        this.startScroll(scrollLeft, scrollTop, isPopupRequired, centerY);
-      }
+    // As centerCurrentLocation(), for the events that centred 'server' before
+    // (selection change, connecting, ...): with nothing to frame, 'server' is centred.
+    showState(server, noAnimation) {
+      this.whenLaidOut(noAnimation, () => {
+        if (this.showStateNow(noAnimation)) return;
+        this.centerServerNow(
+          server,
+          noAnimation,
+          false,
+          this.isConnected ? null : this.disconnectedScale(),
+        );
+      });
     },
-    // Vertical position (in canvas pixels) where a centred location is placed:
-    // the middle of the map area that is not covered by the bottom panel
-    // (the "Connection details" card and its 20 px bottom gap).
-    getVisibleMapCenterY() {
+    // Connected: the connected server, zoomed in on its country. Not connected: the user's
+    // location and the selected server together. Returns false when neither applies.
+    showStateNow(noAnimation) {
+      if (this.isConnected) {
+        const server = this.selectedServer;
+        const p = mapUnitsPoint(server);
+        if (!p) return false;
+        this.startView(
+          { scale: this.getCountryScale(server), x: p.x, y: p.y },
+          noAnimation,
+        );
+        return true;
+      }
+      const target = this.getFrameTarget();
+      if (!target) return false;
+      this.startView(target, noAnimation);
+      return true;
+    },
+    // Watchers run before the DOM update, and the "Connection details" card can change
+    // its height in that same update (e.g. the speed section appears on connect):
+    // measure the card once the DOM is updated.
+    whenLaidOut(noAnimation, func) {
+      if (noAnimation) {
+        if (this.isViewReady()) func();
+        return;
+      }
+      this.$nextTick(() => {
+        if (this.isViewReady()) func();
+      });
+    },
+    // the map can be hidden (unmounted) before a deferred call runs
+    isViewReady() {
+      if (!this.combinedDiv || !this.combinedDiv.isConnected) return false;
+      this.windowResizing(); // update canvas size
+      return true;
+    },
+    // not connected, one location to show: the current zoom, but not closer than the default
+    // (e.g. after the zoom of the connected country)
+    disconnectedScale() {
+      return Math.min(this.scale, defaultZoomScale);
+    },
+
+    centerServer(server, noAnimation, isPopupRequired, scale) {
+      if (server == null) return;
+      this.whenLaidOut(noAnimation, () =>
+        this.centerServerNow(server, noAnimation, isPopupRequired, scale),
+      );
+    },
+    // 'scale': the zoom to show it at (default: the current one)
+    centerServerNow(server, noAnimation, isPopupRequired, scale) {
+      const p = mapUnitsPoint(server);
+      if (!p) return;
+      this.startView(
+        {
+          scale: scale || this.scale,
+          x: p.x,
+          y: p.y,
+          isPopupRequired,
+          location: server,
+        },
+        noAnimation,
+      );
+    },
+
+    // Height (in canvas pixels) of the map part that the bottom panel
+    // (the "Connection details" card and its 20 px bottom gap) does not cover.
+    getVisibleMapHeight() {
       const height = this.canvas ? this.canvas.height : 0;
       const panel = this.$refs.bottomPanel;
-      if (!panel || !height) return height / 2;
+      if (!panel || !height) return height;
 
       let covered = panel.offsetHeight + bottomPanelGapPx;
       // the speed section stays in the DOM while it fades out: it will be gone, do not count it
       const leaving = panel.querySelector(".speedSection.fade-leave-active");
       if (leaving) covered -= leaving.offsetHeight;
-      // very small map: not enough room above the card, use the real centre
-      if (height - covered < minVisibleMapHeightPx) return height / 2;
-      return (height - covered) / 2;
+      return height - covered;
     },
-    startScroll(scrollToLeft, scrollTop, isPopupRequired, centerY) {
-      if (
-        this.scrollTo != null &&
-        this.scrollTo.left === scrollToLeft &&
-        this.scrollTo.top === scrollTop
-      )
+    // Vertical position (in canvas pixels) where a centred location is placed:
+    // the middle of the map area that is not covered by the bottom panel.
+    getVisibleMapCenterY() {
+      const height = this.canvas ? this.canvas.height : 0;
+      if (!this.$refs.bottomPanel || !height) return height / 2;
+      const visible = this.getVisibleMapHeight();
+      // very small map: not enough room above the card, use the real centre
+      if (visible < minVisibleMapHeightPx) return height / 2;
+      return visible / 2;
+    },
+    // The size of the map part not covered by the bottom panel, and where a centred
+    // point goes in it (canvas px).
+    getVisibleMapArea() {
+      const width = this.canvas ? this.canvas.width : 0;
+      const centerY = this.getVisibleMapCenterY();
+      let height = this.getVisibleMapHeight();
+      // very small map: the centred point is in the real centre (see getVisibleMapCenterY)
+      if (height < minVisibleMapHeightPx) height = centerY * 2;
+      return { width, height, centerY };
+    },
+
+    // Not connected: the view that shows the user's location and the selected server
+    // together, with their label cards and the dashed line between them, or null.
+    // The middle of the two points is centred, and the view zooms out (from the default
+    // zoom, not below 'minFrameScale') just enough for both. When they do not fit even
+    // then, the selected server keeps its place in the view and the line leads off it.
+    getFrameTarget() {
+      const u = this.userMarker;
+      const s = this.serverMarker;
+      if (this.isConnected || !u || !s || s.kind === "connected") return null;
+      const pu = mapUnitsPoint(u.location);
+      const ps = mapUnitsPoint(s.location);
+      if (!pu || !ps) return null;
+
+      const area = this.getVisibleMapArea();
+      if (area.width <= 0 || area.height <= 0) return null;
+      const margin = frameMarginPx;
+      const room = {
+        w: area.width - 2 * margin,
+        h: area.height - 2 * margin,
+      };
+
+      // what each marker takes around its point (px; the same at every zoom)
+      const uExt = this.markerExtent(u);
+      const sExt = this.markerExtent(s);
+      // the dashed line (map units: it grows with the zoom)
+      const line = routeBox(pu, ps);
+
+      // content box (px, map pixels) at zoom 'k'
+      const boxAt = (k, onlyServer) => {
+        const b = {
+          l: k * ps.x + sExt.l,
+          t: k * ps.y + sExt.t,
+          r: k * ps.x + sExt.r,
+          b: k * ps.y + sExt.b,
+        };
+        if (onlyServer) return b;
+        b.l = Math.min(b.l, k * pu.x + uExt.l, k * line.l);
+        b.t = Math.min(b.t, k * pu.y + uExt.t, k * line.t);
+        b.r = Math.max(b.r, k * pu.x + uExt.r, k * line.r);
+        b.b = Math.max(b.b, k * pu.y + uExt.b, k * line.b);
+        return b;
+      };
+      const fits = (b) => b.r - b.l <= room.w && b.b - b.t <= room.h;
+
+      // the closest zoom (not closer than the default) at which both fit
+      let scale = minFrameScale;
+      let fitsAll = false;
+      const step = 0.005;
+      for (let k = defaultZoomScale; k >= minFrameScale - 1e-9; k -= step) {
+        if (fits(boxAt(k))) {
+          scale = k;
+          fitsAll = true;
+          break;
+        }
+      }
+      scale = Math.round(scale * 1000) / 1000;
+
+      // centre the middle of the two points, moved just enough to keep the content in view
+      const box = boxAt(scale, !fitsAll);
+      let cx = (scale * (pu.x + ps.x)) / 2;
+      let cy = (scale * (pu.y + ps.y)) / 2;
+      cx = clampCentre(cx, box.l, box.r, area.width / 2, margin);
+      cy = clampCentre(cy, box.t, box.b, area.height / 2, margin);
+      return { scale, x: cx / scale, y: cy / scale };
+    },
+
+    // Room a marker takes around its point (px): pin or dot, leader line and label card.
+    // Geometry: components/map/map-marker.vue (the same as in markerAreas()).
+    markerExtent(m) {
+      const cardW = this.estimateCardWidth(m);
+      if (m.kind === "user")
+        // 36 px dot; card at +20 / -25, 51 px high
+        return { l: -18, t: -25, r: 20 + cardW, b: 26 };
+      // ripple rings (68 x 26 at most), card at +40 / -100
+      return { l: -34, t: -100, r: 40 + cardW, b: 13 };
+    },
+
+    // Connected: zoom in on the country (the outline around the server's point) until it
+    // takes about 'countryViewPart' of the visible map; a big country stays at the default zoom.
+    getCountryScale(server) {
+      const box = countryBoxOfLocation(server);
+      if (!box) return defaultZoomScale;
+      const area = this.getVisibleMapArea();
+      const w = Math.max(box.maxX - box.minX, 1);
+      const h = Math.max(box.maxY - box.minY, 1);
+      let scale = Math.min(
+        (countryViewPart * area.width) / w,
+        (countryViewPart * area.height) / h,
+      );
+      if (!(scale > defaultZoomScale)) scale = defaultZoomScale;
+      if (scale > maxCountryScale) scale = maxCountryScale;
+      return Math.round(scale * 1000) / 1000;
+    },
+
+    // Moves the map to 'target': { scale, x, y, isPopupRequired }. (x, y) is a point in map
+    // units placed in the middle of the visible map; the zoom changes along the way.
+    startView(target, noAnimation) {
+      if (!this.combinedDiv || !this.canvas || !target) return;
+      const centerY = this.getVisibleMapCenterY();
+      const scale = target.scale > 0 ? target.scale : this.scale;
+      const to = { scale, x: target.x, y: target.y };
+
+      if (noAnimation) {
+        this.stopScroll();
+        this.isPopupVisible = false;
+        if (scale !== this.scale) {
+          this.applyScale(scale);
+          this.updateCities();
+        }
+        this.scrollToView(to, centerY);
+        // Show popup for centered location
+        if (target.location)
+          this.showPopupForGeoLocation(target.location, target.isPopupRequired);
         return;
+      }
+
+      // the same move is running already (the same point, zoom and place above the card;
+      // the card can grow while the map moves, e.g. the speed section on connect)
+      const a = this.scrollTo;
+      if (
+        a &&
+        a.to.scale === to.scale &&
+        Math.abs(a.to.x - to.x) < 0.5 &&
+        Math.abs(a.to.y - to.y) < 0.5 &&
+        Math.abs(a.centerY - centerY) < 0.5
+      ) {
+        a.isPopupRequired = target.isPopupRequired;
+        return;
+      }
 
       // hide popup (if visible)
       this.isPopupVisible = false;
+      this.hoverTip = null;
 
-      this.stopScroll();
-      this.scrollTo = {
-        left: scrollToLeft,
-        top: scrollTop,
-        centerY: centerY != null ? centerY : this.canvas.height / 2,
-        isPopupRequired,
-        startTimeMs: performance.now(),
-        startLeft: this.combinedDiv.scrollLeft,
-        startTop: this.combinedDiv.scrollTop,
-        maxDurationMs: 600,
+      // the point in the middle of the visible map now (map units)
+      const from = {
+        scale: this.scale,
+        x:
+          (this.combinedDiv.scrollLeft -
+            this.mapPos.mapLeftOffset +
+            this.canvas.width / 2) /
+          this.scale,
+        y:
+          (this.combinedDiv.scrollTop - this.mapPos.mapTopOffset + centerY) /
+          this.scale,
       };
-
-      this.scrollingTick();
+      const zooming = to.scale !== from.scale;
+      if (zooming) this.isZooming = true;
+      this.scrollTo = {
+        from,
+        to,
+        centerY,
+        isPopupRequired: target.isPopupRequired,
+        startTimeMs: performance.now(),
+        // already there: done at the first step
+        durationMs:
+          !zooming &&
+          Math.abs(to.x - from.x) * to.scale <= 1 &&
+          Math.abs(to.y - from.y) * to.scale <= 1
+            ? 0
+            : moveDurationMs,
+      };
+      this.scrollingTick(this.scrollTo);
+    },
+    // scroll so that 'view' (scale, x, y in map units) is in the middle of the visible map
+    scrollToView(view, centerY) {
+      this.combinedDiv.scrollLeft =
+        this.mapPos.mapLeftOffset + view.x * view.scale - this.canvas.width / 2;
+      this.combinedDiv.scrollTop =
+        this.mapPos.mapTopOffset + view.y * view.scale - centerY;
     },
     stopScroll() {
       this.scrollTo = null;
+      this.endZooming();
     },
-    scrollingTick() {
-      if (this.scrollTo == null) return;
-      const sElement = this.combinedDiv;
-      const xOffset = sElement.scrollLeft - this.scrollTo.left;
-      const yOffset = sElement.scrollTop - this.scrollTo.top;
-
-      const scrollLeftMax = sElement.scrollWidth - sElement.clientWidth;
-      const scrollTopMax = sElement.scrollHeight - sElement.clientHeight;
-
-      const isXScrollFinished =
-        Math.abs(xOffset) <= 1 ||
-        (sElement.scrollLeft <= 0 && xOffset > 0) ||
-        (sElement.scrollLeft >= scrollLeftMax && xOffset < 0);
-      const isYScrollFinished =
-        Math.abs(yOffset) <= 1 ||
-        (sElement.scrollTop <= 0 && yOffset > 0) ||
-        (sElement.scrollTop >= scrollTopMax && yOffset < 0);
-
-      if (isXScrollFinished && isYScrollFinished) {
-        // Show popup for centered location
-        this.showPopup(
-          this.scrollTo.left + this.canvas.width / 2,
-          this.scrollTo.top + this.scrollTo.centerY,
-          this.scrollTo.isPopupRequired,
-        );
-        this.stopScroll();
+    // a move that changed the zoom ended (or was stopped): place the server dots and names
+    endZooming() {
+      if (!this.isZooming) return;
+      this.isZooming = false;
+      this.updateCities();
+    },
+    scrollingTick(move) {
+      // stopped, or replaced by another move
+      if (move == null || this.scrollTo !== move) return;
+      if (!this.combinedDiv || !this.combinedDiv.isConnected) {
+        this.scrollTo = null;
+        this.isZooming = false;
         return;
       }
 
       let koef =
-        (performance.now() - this.scrollTo.startTimeMs) /
-        this.scrollTo.maxDurationMs;
+        move.durationMs > 0
+          ? (performance.now() - move.startTimeMs) / move.durationMs
+          : 1;
       if (koef > 1) koef = 1;
+      const k = notLinear(koef);
 
-      koef = notLinear(koef);
+      const from = move.from;
+      const to = move.to;
+      // zoom evenly (in steps of the same ratio)
+      const scale =
+        koef >= 1 || from.scale === to.scale
+          ? to.scale
+          : from.scale * Math.pow(to.scale / from.scale, k);
+      if (scale !== this.scale) this.applyScale(scale);
+      this.scrollToView(
+        {
+          scale,
+          x: from.x + (to.x - from.x) * k,
+          y: from.y + (to.y - from.y) * k,
+        },
+        move.centerY,
+      );
 
-      sElement.scrollLeft =
-        this.scrollTo.startLeft +
-        (this.scrollTo.left - this.scrollTo.startLeft) * koef;
-      sElement.scrollTop =
-        this.scrollTo.startTop +
-        (this.scrollTo.top - this.scrollTo.startTop) * koef;
+      if (koef >= 1) {
+        this.scrollTo = null;
+        this.endZooming();
+        // Show popup for centered location
+        this.showPopup(
+          this.combinedDiv.scrollLeft + this.canvas.width / 2,
+          this.combinedDiv.scrollTop + move.centerY,
+          move.isPopupRequired,
+        );
+        return;
+      }
 
-      setTimeout(() => {
-        this.scrollingTick();
-      }, 1000 / 60);
+      const next = () => this.scrollingTick(move);
+      if (typeof requestAnimationFrame === "function")
+        requestAnimationFrame(next);
+      else setTimeout(next, 1000 / 60);
     },
 
     // ================= POPUP ====================
@@ -884,35 +1562,10 @@ export default {
     // ================= ZOOMING ====================
     wheel(e) {
       this.isPopupVisible = false;
+      this.hoverTip = null;
       if (e.deltaY > 0) this.zoomIn(e);
       else if (e.deltaY < 0) this.zoomOut(e);
     },
-    /*
-    async startZooming(expectedScale) {
-      if (!expectedScale) return;
-
-      const theThis = this;
-
-      await new Promise(resolve => {
-        let zoomTick = function() {
-          const isZoomFinished =
-            Math.abs(theThis.scale - expectedScale) < 0.0001;
-          if (isZoomFinished) {
-            resolve();
-            return;
-          }
-
-          console.log("ZOOM", expectedScale, theThis.scale);
-          if (expectedScale > theThis.scale) theThis.zoomOut();
-          else if (expectedScale < theThis.scale) theThis.zoomIn();
-
-          setTimeout(async () => {
-            zoomTick();
-          }, 1000 / 60);
-        };
-        zoomTick();
-      });
-    },*/
 
     zoomIn(e) {
       const step = 0.025;
@@ -935,10 +1588,23 @@ export default {
       this.updateScale(newScale, e);
     },
 
+    // the map and the locations layer at zoom 'scale' (the scroll position is the caller's)
+    applyScale(scale) {
+      this.scale = scale;
+      const w = `${MAP_WIDTH * scale}px`;
+      const h = `${MAP_HEIGHT * scale}px`;
+      this.map.style.width = w;
+      this.map.style.height = h;
+      this.mapLocationsContainer.style.width = w;
+      this.mapLocationsContainer.style.height = h;
+    },
+
     updateScale(newScale, zoomPoint) {
       const scaleDiff = newScale - this.scale;
 
       if (Math.abs(scaleDiff) < 0.001) return;
+      // the user zooms: a running move of the map stops here
+      this.stopScroll();
       const l = this.combinedDiv.scrollLeft;
       const t = this.combinedDiv.scrollTop;
 
@@ -960,8 +1626,8 @@ export default {
         };
       }
 
-      const mapFullW = this.map.naturalWidth;
-      const mapFullH = this.map.naturalHeight;
+      const mapFullW = MAP_WIDTH;
+      const mapFullH = MAP_HEIGHT;
       const mLOffset = this.mapPos.mapLeftOffset;
       const mTOffset = this.mapPos.mapTopOffset;
 
@@ -973,10 +1639,7 @@ export default {
       );
 
       // change scale
-      this.scale = newScale;
-      this.map.style.width = `${mapFullW * this.scale}px`;
-      this.mapLocationsContainer.style.width = `${mapFullW * this.scale}px`;
-      this.mapLocationsContainer.style.height = `${mapFullH * this.scale}px`;
+      this.applyScale(newScale);
 
       // keep scroll positions
       let newPoint = getCoordinatesBy(
@@ -989,23 +1652,21 @@ export default {
       this.combinedDiv.scrollLeft = mLOffset + newPoint.x - zoomPoint.offsetX;
       this.combinedDiv.scrollTop = mTOffset + newPoint.y - zoomPoint.offsetY;
 
-      // redraw locations
+      // redraw locations (the markers follow the scale by themselves)
       this.updateCities();
-
-      // necessary to keep correct circle locations
-      this.animateCurentLocation();
-      this.animateSelectedServer();
     },
 
     // ================= DRAWING ====================
     getLocationXYCoordinates(location) {
-      if (location == null || this.map == null || this.map.naturalWidth == null)
-        return null;
+      if (location == null) return null;
+      const lon = Number(location.longitude);
+      const lat = Number(location.latitude);
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
       let point = getCoordinatesBy(
-        location.longitude,
-        location.latitude,
-        this.scale * this.map.naturalWidth,
-        this.scale * this.map.naturalHeight,
+        lon,
+        lat,
+        this.scale * MAP_WIDTH,
+        this.scale * MAP_HEIGHT,
       );
       return point;
     },
@@ -1015,8 +1676,8 @@ export default {
       let point = getCoordinatesBy(
         location.longitude,
         location.latitude,
-        this.scale * this.map.naturalWidth,
-        this.scale * this.map.naturalHeight,
+        this.scale * MAP_WIDTH,
+        this.scale * MAP_HEIGHT,
       );
       if (point == null) return null;
       point.x = point.x - this.combinedDiv.scrollLeft;
@@ -1025,35 +1686,27 @@ export default {
     },
 
     updateCities() {
+      if (!this.hiddenTestTextMeter) return;
       let cities = [];
-      const PointRadius = 3;
-      const PointRadiusExitServer = 6;
       const settings = this.$store.state.settings;
 
-      // Selected servers and current location has highest priority to draw
-      let city = null;
-      // current location
-      if (this.location != null) {
-        city = this.createCity(this.location, cities, PointRadius);
-        if (city != null) cities.push(city);
-      }
+      // The markers have the highest priority: other names keep clear of their pins and cards.
+      // (The user's location stays first: showPopup() looks the popup location up in this list.)
+      if (this.userMarker != null)
+        cities.push(...this.markerAreas(this.userMarker));
+      if (this.serverMarker != null)
+        cities.push(...this.markerAreas(this.serverMarker));
 
-      // show exit- and entry- servers
-      city = this.createCity(
-        this.connectedLocation,
-        cities,
-        PointRadiusExitServer,
-      );
-      if (city != null) cities.push(city);
+      let city = null;
       // if MultiHop - just ensure that entry- server vill be visible
       if (settings.isMultiHop) {
-        let city = this.createCity(settings.serverEntry, cities, PointRadius);
+        city = this.createCity(settings.serverEntry, cities, PointRadius);
         if (city != null) cities.push(city);
       }
 
       let skippedCities = [];
       // all the rest locations
-      this.servers.forEach((s) => {
+      (this.servers || []).forEach((s) => {
         city = this.createCity(s, cities, PointRadius);
         if (city == null) {
           skippedCities.push(s);
@@ -1070,6 +1723,75 @@ export default {
         cities.push(city);
       });
       this.locationsToDisplay = cities;
+
+      // the hovered server may have moved (zoom) or gone
+      if (
+        this.hoverTip &&
+        !cities.some((c) => !c.marker && c.location === this.hoverTip.location)
+      )
+        this.hoverTip = null;
+    },
+
+    // The areas a marker takes (its point, pin and label card), as entries of 'locationsToDisplay'.
+    // Geometry: components/map/map-marker.vue.
+    markerAreas(m) {
+      const cardW = this.estimateCardWidth(m);
+      const cardH = 51;
+      if (m.kind === "user") {
+        // user location: 36 px dot, card on its right
+        return [
+          {
+            location: m.location,
+            marker: true,
+            x: m.x,
+            y: m.y,
+            pointRadius: 18,
+            left: m.x + 20,
+            top: m.y - 25,
+            width: cardW,
+            height: cardH,
+          },
+        ];
+      }
+      return [
+        // ripple rings + the card (up and right, at the end of the leader line)
+        {
+          location: m.location,
+          marker: true,
+          x: m.x,
+          y: m.y,
+          pointRadius: 16,
+          left: m.x + 40,
+          top: m.y - 100,
+          width: cardW,
+          height: cardH,
+        },
+        // the pin and the leader line
+        {
+          location: m.location,
+          marker: true,
+          x: m.x,
+          y: m.y - 24,
+          pointRadius: 18,
+          left: m.x + 8,
+          top: m.y - 60,
+          width: 32,
+          height: 32,
+        },
+      ];
+    },
+    // approximate width of a marker's label card (it is laid out by map-marker.vue)
+    estimateCardWidth(m) {
+      this.hiddenTestTextMeter.innerText = m.title || "";
+      // the meter uses the 10.5 px name font; the card title is 12.5 px semibold
+      const titleW = Math.min(168, this.hiddenTestTextMeter.clientWidth * 1.25);
+      const placeW = 21 + 7 + titleW + (m.code ? 7 + 21 : 0);
+      let tierW = 0;
+      if (m.tier === "Premium") tierW = 10 + 66;
+      else if (m.tier === "Free") tierW = 10 + 33;
+      else if (m.tier === "Mixed") tierW = 10 + 52;
+      const captionW = (m.caption || "").length * 7.6 + tierW;
+      return Math.ceil(2 + 16 + Math.max(placeW, captionW));
     },
 
     createCity(location, locations, pointRadius, doNotShowName) {
@@ -1107,118 +1829,15 @@ export default {
         pointRadius,
         width: textWidth,
         height: textHeight,
+        locked:
+          !!location.gateway && IsServerLocked(location, this.isPremiumAccount),
       };
-    },
-
-    // ================= ANIMATIONS ================
-    updateAnimations() {
-      this.animateCurentLocation();
-      this.animateSelectedServer();
-    },
-
-    animateCurentLocation() {
-      // Current location
-      if (this.location == null || !this.isDisconnected) {
-        // Location not known
-        // remove 'grow' style
-        this.animCurrLocCircle.classList.remove("mapLocationCircleGrow");
-        // add 'shrink' style
-        if (
-          !this.animCurrLocCircle.classList.contains("mapLocationCircleShrink")
-        ) {
-          this.animCurrLocCircle.classList.add("mapLocationCircleShrink");
-        }
-      } else {
-        const point = this.getLocationXYCoordinates(this.location);
-        if (point != null) {
-          // set coordinates
-          this.animCurrLocCircle.style.left = `${point.x}px`;
-          this.animCurrLocCircle.style.top = `${point.y}px`;
-
-          // remove 'shrink' style
-          this.animCurrLocCircle.classList.remove("mapLocationCircleShrink");
-
-          // add 'grow' style
-          if (
-            !this.animCurrLocCircle.classList.contains("mapLocationCircleGrow")
-          ) {
-            this.animCurrLocCircle.classList.add("mapLocationCircleGrow");
-          }
-        }
-      }
-    },
-    animateSelectedServer() {
-      function setDisconnectedObj(theThis) {
-        const el1 = theThis.animSelCircles[0];
-        const el2 = theThis.animSelCircles[1];
-
-        // change color to disconnected
-        el1.classList.remove("mapLocationCircleConnected");
-        if (!el1.classList.contains("mapLocationCircleDisonnected"))
-          el1.classList.add("mapLocationCircleDisonnected");
-
-        // shrink circle
-        el1.classList.remove("mapLocationCircleGrow");
-        if (!el1.classList.contains("mapLocationCircleShrink"))
-          el1.classList.add("mapLocationCircleShrink");
-
-        // put object to the and of 'animSelCircles' array
-        // The last element must be allways shrinked, first - ready to grow
-        theThis.animSelCircles[0] = el2;
-        theThis.animSelCircles[1] = el1;
-      }
-
-      let obj = this.animSelCircles[0];
-      if (this.isInProgress || this.isConnected) {
-        //if (this.isConnecting || this.isConnected) {
-        const point = this.getLocationXYCoordinates(this.connectedLocation);
-        if (point != null) {
-          if (
-            obj.IVPNLocationObj != null &&
-            obj.IVPNLocationObj.city != this.connectedLocation.city
-          ) {
-            setDisconnectedObj(this);
-            obj = this.animSelCircles[0];
-          }
-
-          // set coordinates for selected server
-          obj.style.left = `${point.x}px`;
-          obj.style.top = `${point.y}px`;
-          obj.IVPNLocationObj = this.connectedLocation;
-
-          // set coordinates for 'connected waves' animation object
-          this.animConnectedWaves.style.left = `${point.x}px`;
-          this.animConnectedWaves.style.top = `${point.y}px`;
-          this.animConnectedWaves.IVPNLocationObj = this.connectedLocation;
-
-          // we are connected or connecting
-          // Remove 'shrink' class
-          obj.classList.remove("mapLocationCircleShrink");
-          // Add 'grow' class
-          if (!obj.classList.contains("mapLocationCircleGrow"))
-            obj.classList.add("mapLocationCircleGrow");
-
-          if (this.isInProgress) {
-            // change color to 'disconnected'
-            obj.classList.remove("mapLocationCircleConnected");
-
-            if (!obj.classList.contains("mapLocationCircleDisonnected"))
-              obj.classList.add("mapLocationCircleDisonnected");
-          }
-
-          if (this.isConnected) {
-            // change color to 'connected'
-            obj.classList.remove("mapLocationCircleDisonnected");
-
-            if (!obj.classList.contains("mapLocationCircleConnected"))
-              obj.classList.add("mapLocationCircleConnected");
-          }
-        }
-      } else setDisconnectedObj(this);
     },
   },
 };
 
+// Position of a server name next to its point: right (as in the design), then
+// left, above, below and the four diagonals; null when every place is taken.
 function calcTextLocation(
   x,
   y,
@@ -1227,31 +1846,31 @@ function calcTextLocation(
   textHeight,
   drawedCities,
 ) {
-  const space = 3;
+  const space = 4.5;
   const width = textWidth;
   const height = textHeight;
 
-  // up (above the point)
-  let left = x - width / 2;
-  let top = y - (pointRadius + space + height);
-  if (!isUse(drawedCities, x, y, pointRadius, left, top, width, height) == true)
-    return { textX: left, textY: top };
-
   // right
-  left = x + space + pointRadius;
-  top = y - height / 2;
-  if (!isUse(drawedCities, x, y, pointRadius, left, top, width, height) == true)
-    return { textX: left, textY: top };
-
-  // buttom (under the point)
-  left = x - width / 2;
-  top = y + (pointRadius + space);
+  let left = x + space + pointRadius;
+  let top = y - height / 2;
   if (!isUse(drawedCities, x, y, pointRadius, left, top, width, height) == true)
     return { textX: left, textY: top };
 
   // left
   left = x - pointRadius - space - width;
   top = y - height / 2;
+  if (!isUse(drawedCities, x, y, pointRadius, left, top, width, height) == true)
+    return { textX: left, textY: top };
+
+  // up (above the point)
+  left = x - width / 2;
+  top = y - (pointRadius + space + height);
+  if (!isUse(drawedCities, x, y, pointRadius, left, top, width, height) == true)
+    return { textX: left, textY: top };
+
+  // buttom (under the point)
+  left = x - width / 2;
+  top = y + (pointRadius + space);
   if (!isUse(drawedCities, x, y, pointRadius, left, top, width, height) == true)
     return { textX: left, textY: top };
 
@@ -1302,8 +1921,8 @@ function isUse(drawedCities, x, y, pointRadius, left, top, width, height) {
       height: pointRadius * 2,
     };
     let p2 = {
-      left: r2.x - pointRadius,
-      top: r2.y - pointRadius,
+      left: r2.x - r2.pointRadius,
+      top: r2.y - r2.pointRadius,
       width: r2.pointRadius * 2,
       height: r2.pointRadius * 2,
     };
@@ -1323,14 +1942,56 @@ function isUse(drawedCities, x, y, pointRadius, left, top, width, height) {
 
 $shadow: 0px 3px 12px rgba(var(--shadow-color-rgb), var(--shadow-opacity));
 
-$popup-background: var(--background-color);
-
 @import "@/components/scss/constants";
 
 #main {
+  // Map colours (light theme; dark values below). The child map components
+  // (components/map/*) read the --wm-* tokens from here.
+  --wm-ocean: var(--map-background-color);
+  --wm-ocean-dot: #d4d4d8;
+  --wm-coast-halo: rgba(255, 255, 255, 0.6);
+  --wm-land: #f4f4f5;
+  --wm-land-servers: #ffffff;
+  --wm-border: #d4d4d8;
+  --wm-on-fill: #d9f2e1;
+  --wm-on-border: #16a34a;
+  --wm-on-halo: rgba(22, 163, 74, 0.18);
+  --wm-dot: #71717a;
+  --wm-dot-gap: #ffffff;
+  --wm-dot-ring: #d4d4d8;
+  --wm-dot-hover: #27272a;
+  --wm-dot-hover-border: #ffffff;
+  --wm-name: var(--text-muted);
+  // name of a server a Free account cannot use: fainter, still 4.5:1 on land and ocean
+  --wm-name-locked: #62626b;
+  --wm-name-halo: #ffffff;
+  --wm-route: #c47f00;
+
   position: relative;
   width: 100%;
   height: 100%;
+  background: var(--wm-ocean);
+}
+@media (prefers-color-scheme: dark) {
+  #main {
+    --wm-ocean-dot: #26262c;
+    --wm-coast-halo: rgba(124, 124, 138, 0.13);
+    --wm-land: #18191e;
+    --wm-land-servers: #24252c;
+    --wm-border: #2c2d34;
+    --wm-on-fill: #14261b;
+    --wm-on-border: #86efac;
+    --wm-on-halo: rgba(134, 239, 172, 0.2);
+    --wm-dot: #a1a1aa;
+    --wm-dot-gap: #1d1d21;
+    --wm-dot-ring: #3a3a42;
+    --wm-dot-hover: #f4f4f5;
+    --wm-dot-hover-border: #0b0b0d;
+    --wm-name: #a1a1aa;
+    --wm-name-locked: #8e8e96;
+    --wm-name-halo: #0b0b0d;
+    --wm-route: #ffb000;
+  }
 }
 
 .mapcontainer {
@@ -1359,9 +2020,15 @@ $popup-background: var(--background-color);
   filter: blur(7px);
   backdrop-filter: blur(5px);
 }
+// the ocean: a fine dot pattern that moves with the map
 .bigMapArea {
   position: relative;
-  background: var(--map-background-color);
+  background-color: var(--wm-ocean);
+  background-image: radial-gradient(
+    var(--wm-ocean-dot) 1.2px,
+    transparent 1.3px
+  );
+  background-size: 14px 14px;
 }
 .map {
   position: relative;
@@ -1451,40 +2118,43 @@ div.trialWillExpire button {
 }
 
 // ============== POPUP =================
-// Popup container - can be anything you want
+// Popup container: placed (left/top) at the map point by showPopup()
 .popup {
   position: absolute;
   z-index: 5;
   user-select: none;
 }
 
-// The actual popup
+// The actual popup: a card under the point (clear of the 36 px location marker)
 .popup .popuptext {
   visibility: hidden;
-  background-color: $popup-background;
-  text-align: center;
-  border-radius: 8px;
   position: absolute;
-
-  margin-top: 23px; // 15 arrow + 8
-
-  min-width: 270px;
-  max-width: 270px;
-  margin-left: -149px; // 270/2 + padding(14)
-
-  padding: 14px;
+  box-sizing: border-box;
+  width: 248px;
+  margin-left: -124px;
+  margin-top: 30px;
+  padding: 12px 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background-color: var(--surface-color);
   box-shadow: $shadow;
+  text-align: left;
 }
 
-// Popup arrow
+// Popup arrow: a rotated square that carries the card border on its two outer sides
 .popup .popuptext::after {
   content: "";
   position: absolute;
-  top: -28px;
-  margin-left: -15px;
-  border-width: 15px;
-  border-style: solid;
-  border-color: transparent transparent $popup-background transparent;
+  top: -6px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  // centred on the card (and on the map point): 11 px box with its border
+  margin-left: -5.5px;
+  background-color: var(--surface-color);
+  border-left: 1px solid var(--surface-border);
+  border-top: 1px solid var(--surface-border);
+  transform: rotate(45deg);
 }
 
 // Toggle this class - hide and show the popup
@@ -1515,118 +2185,100 @@ div.trialWillExpire button {
   white-space: nowrap;
 }
 
+// server name next to its dot
 .mapLocationName {
   @extend .mapLocationElement;
-  font-size: 10px;
-  line-height: 12px;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 13px;
   display: inline-block;
-  letter-spacing: -0.3px;
 
-  color: var(--map-text-color);
+  color: var(--wm-name);
   text-shadow:
-    -1px 1px 0 var(--background-color),
-    1px 1px 0 var(--background-color),
-    1px -1px 0 var(--background-color),
-    -1px -1px 0 var(--background-color);
+    0 0 3px var(--wm-name-halo),
+    0 0 2px var(--wm-name-halo);
+}
+// the hover label shows the name instead.
+// (Transparent, not "visibility: hidden": a hidden name stops taking the mouse, which
+// fires "mouseleave" at once, so the label would flash and vanish on every move.)
+.mapLocationName.mapLocationNameHovered {
+  opacity: 0;
 }
 
-.mapLocationNameCurrent {
-  color: #ff6258;
-}
-
-.mapLocationNameConnected {
-  color: var(--accent-color);
-}
-
+// a 28 x 28 hit area centred on the map point; the dot is drawn inside it
 .mapLocationPoint {
   @extend .mapLocationElement;
-  background-color: var(--map-point-color);
-  border-radius: 100%;
-  display: inline-block;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  display: block;
 }
-
-.mapLocationPointCurrent {
-  background: #ff6258;
-}
-
-.mapLocationPointConnected {
-  background: var(--accent-color);
-}
-
-// ========== ANIMATIONS ===========
-.mapLocationCircle {
+.mapLocationPoint::before {
+  content: "";
   position: absolute;
+  left: 50%;
+  top: 50%;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--wm-dot);
+  box-shadow:
+    0 0 0 3px var(--wm-dot-gap),
+    0 0 0 4px var(--wm-dot-ring);
+}
+.mapLocationPointHovered::before {
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  margin-top: -6px;
+  background: var(--wm-dot-hover);
+  border: 2px solid var(--wm-dot-hover-border);
+  box-shadow: 0 0 0 3px var(--wm-dot-ring);
+}
+// a server a Free account cannot use (a click opens the "<City> is Premium" prompt)
+.mapLocationLocked {
+  opacity: 0.55;
+}
+// its name is text: a fainter colour instead of the see-through look
+// (at 55 % it was 3:1 on the dark map and 2.3:1 on the light one)
+.mapLocationName.mapLocationLocked {
+  color: var(--wm-name-locked);
+}
+.mapLocationName.mapLocationLocked:not(.mapLocationNameHovered) {
+  opacity: 1;
+}
+
+// dashed line: the user's location -> the selected server
+.routeLine {
+  position: absolute;
+  display: block;
+  overflow: visible;
   pointer-events: none;
-  white-space: nowrap;
-  opacity: 0;
-
-  transform: scale(0);
-
-  border-radius: 100%;
-  display: inline-block;
-
-  transition:
-    transform 0.7s,
-    opacity 0.7s,
-    background 0.5s;
 }
-
-.mapLocationCircleSelectedSvr {
-  @extend .mapLocationCircle;
-  margin-left: -48px;
-  margin-top: -48px;
-  width: 96px;
-  height: 96px;
-  background: #6b6b6b;
+.routeLine path {
+  fill: none;
+  stroke: var(--wm-route);
+  stroke-opacity: 0.75;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 5;
+  stroke-linecap: round;
 }
-
-.mapLocationCircleConnectedWaves {
-  @extend .mapLocationCircleSelectedSvr;
-  @extend .mapLocationCircleConnected;
+// connecting: the dashes run towards the server
+.routeLineMoving path {
+  animation: routeFlow 0.9s linear infinite;
 }
-.mapLocationCircleConnectedWavesRunning {
-  animation: growWave 5s infinite;
-}
-
-.mapLocationCircleCurrLocation {
-  @extend .mapLocationCircle;
-  margin-left: -48px;
-  margin-top: -48px;
-  width: 96px;
-  height: 96px;
-  background: #ff6258;
-}
-
-.mapLocationCircleDisonnected {
-  background: #6b6b6b;
-}
-.mapLocationCircleConnected {
-  background: var(--accent-color);
-}
-
-.mapLocationCircleShrink {
-  opacity: 0;
-  transform: scale(0);
-}
-
-.mapLocationCircleGrow {
-  opacity: 0.5;
-  transform: scale(1);
-}
-
-@keyframes growWave {
-  0% {
-    opacity: 0.5;
-    transform: scale(0);
+@keyframes routeFlow {
+  to {
+    stroke-dashoffset: -9;
   }
-  60% {
-    // delay between iterations=5s, animation=3s (3/5=0.6)
-    opacity: 0;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .routeLineMoving path {
+    animation: none;
   }
 }
 </style>

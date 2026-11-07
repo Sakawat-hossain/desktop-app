@@ -31,6 +31,12 @@ import {
   isPortInRanges,
 } from "@/store/types";
 import { enumValueName } from "@/helpers/helpers";
+import {
+  IsServerLocked,
+  IsServerMixed,
+  IsHostLocked,
+  HostId,
+} from "@/helpers/helpers_premium";
 import { Platform, PlatformEnum } from "@/platform/platform";
 import config from "@/config";
 
@@ -40,6 +46,15 @@ function applyFeatureLimits(state) {
   if (!config.Features.MultiHop) state.isMultiHop = false;
   if (!config.Features.AntiTracker && state.antiTracker)
     state.antiTracker = { ...state.antiTracker, Enabled: false };
+}
+
+// v1.0.0: the panel groups the servers of one city into one location with
+// several hosts ("Dhaka District #1", "#2"), so the server list shows hosts by
+// default. Turn it on once on upgrade; a later explicit choice is kept.
+function applyShowHostsDefaultOnce(state) {
+  if (state.showHostsMigrated === true) return;
+  state.showHosts = true;
+  state.showHostsMigrated = true;
 }
 
 // Windows: older builds kept the app out of the taskbar by default
@@ -72,6 +87,10 @@ const getDefaultState = () => {
     serverExit: null,
     serverEntryHostId: null, // property is defined when selected specific host (contains only host ID: "us-tx1.gw.ivpn.net" => "us-tx1")
     serverExitHostId: null, // property is defined when selected specific host (contains only host ID: "us-tx1.gw.ivpn.net" => "us-tx1")
+    // true when the host above was chosen by the app, not by the user: a Free account on a
+    // location with Free and Premium hosts gets its best-ping Free host (see ensureUsableSelection)
+    serverEntryHostIsAuto: false,
+    serverExitHostIsAuto: false,
     isFastestServer: true,
     isRandomServer: false,
     isRandomExitServer: false,
@@ -220,7 +239,8 @@ const getDefaultState = () => {
     colorThemeTrayIcon: ColorThemeTrayIcon.auto,
     connectSelectedMapLocation: false,
     windowRestorePosition: null, // {x=xxx, y=xxx}
-    showHosts: false, //Enable selection of individual servers in server selection list
+    showHosts: true, //Enable selection of individual servers in server selection list
+    showHostsMigrated: true,
 
     showISPInfo: false, // "Show ISP info in servers list"
     multihopWarnSelectSameCountries: true, // "Warn me when selecting Multihop entry and exit servers located in the same country"
@@ -265,6 +285,7 @@ export default {
       Object.assign(state, val);
       applyFeatureLimits(state);
       applyTaskbarDefaultOnce(state);
+      applyShowHostsDefaultOnce(state);
     },
 
     resetToDefaults(state) {
@@ -328,6 +349,12 @@ export default {
         if (!isServerContainsHost(state.serverExit, hostId)) hostId = null;
       }
       state.serverExitHostId = hostId;
+    },
+    serverEntryHostIsAuto(state, val) {
+      state.serverEntryHostIsAuto = val === true;
+    },
+    serverExitHostIsAuto(state, val) {
+      state.serverExitHostIsAuto = val === true;
     },
     isFastestServer(state, val) {
       state.isFastestServer = val;
@@ -502,6 +529,7 @@ export default {
     },
     showHosts(state, val) {
       state.showHosts = val;
+      state.showHostsMigrated = true; // an explicit choice: never override it
       // if disabled - erase info about currently selected hosts
       if (val !== true) {
         state.serverEntryHostId = null;
@@ -745,46 +773,74 @@ export default {
             );
         }
       }
+      // Free account: the exit server may be in use now. (account/sessionStatus dispatches
+      // this action, so it also runs after every account status update.)
+      ensureUsableSelection(context);
     },
     serverEntry(context, srv) {
-      context.commit("serverEntry", srv);
+      // Free account: never a location it cannot use (e.g. a random pick)
+      context.commit(
+        "serverEntry",
+        usableServerOrFallback(context, srv, false),
+      );
       updateSelectedServers(context); // just to be sure entry-  and exit- servers are from different countries
     },
     serverExit(context, srv) {
-      context.commit("serverExit", srv);
+      context.commit("serverExit", usableServerOrFallback(context, srv, true));
       updateSelectedServers(context); // just to be sure entry-  and exit- servers are from different countries
     },
     serverEntryHostId(context, hostId) {
       context.commit("serverEntryHostId", hostId);
+      context.commit("serverEntryHostIsAuto", false); // the user's own choice (or none)
+      ensureUsableSelection(context);
     },
     serverExitHostId(context, hostId) {
       context.commit("serverExitHostId", hostId);
+      context.commit("serverExitHostIsAuto", false); // the user's own choice (or none)
+      ensureUsableSelection(context);
     },
 
     // Ensure the selected hosts equals to connected one. Of not equals - erase host selection
     serverEntryHostIPCheckOrErase(context, hostIp) {
-      if (!this.state.settings.serverEntryHostId) return;
       const svr = this.state.settings.serverEntry;
-      const hostId = this.state.settings.serverEntryHostId;
-      let hostConnected = getServerHostByIp(svr, hostIp);
-      let hostSelected = getServerHostById(svr, hostId);
+      if (this.state.settings.serverEntryHostId) {
+        const hostId = this.state.settings.serverEntryHostId;
+        let hostConnected = getServerHostByIp(svr, hostIp);
+        let hostSelected = getServerHostById(svr, hostId);
 
-      if (
-        !hostConnected ||
-        !hostSelected ||
-        hostConnected.hostname != hostSelected.hostname
-      )
-        context.commit("serverEntryHostId", null);
+        if (
+          !hostConnected ||
+          !hostSelected ||
+          hostConnected.hostname != hostSelected.hostname
+        )
+          context.commit("serverEntryHostId", null);
+      }
+      // Free account on a location with Free and Premium hosts: keep the host in use chosen
+      pinHostInUse(context, false, svr ? getServerHostByIp(svr, hostIp) : null);
     },
     serverExitHostCheckOrErase(context, hostname) {
-      if (!this.state.settings.serverExitHostId) return;
-      if (!hostname) {
-        context.commit("serverExitHostId", null);
-        return;
+      if (this.state.settings.serverExitHostId) {
+        if (!hostname) {
+          context.commit("serverExitHostId", null);
+        } else {
+          let hostId = hostname.split(".")[0]; // convert hostname to hostId (if necessary)
+          if (hostId != this.state.settings.serverExitHostId)
+            context.commit("serverExitHostId", null);
+        }
       }
-      let hostId = hostname.split(".")[0]; // convert hostname to hostId (if necessary)
-      if (hostId != this.state.settings.serverExitHostId)
-        context.commit("serverExitHostId", null);
+      pinHostInUse(
+        context,
+        true,
+        getServerHostById(this.state.settings.serverExit, hostname),
+      );
+    },
+
+    // Free account: keep the selected servers and hosts to ones it may use.
+    // Dispatched when the account status or the pings change, after disconnecting and
+    // before connecting ({ beforeConnect: true }: applies even while still connected);
+    // for a Premium account it only drops a host the app chose automatically.
+    ensureUsableServers(context, opts) {
+      ensureUsableSelection(context, opts?.beforeConnect === true);
     },
 
     isFastestServer(context, val) {
@@ -988,6 +1044,7 @@ export default {
     },
     showHosts(context, val) {
       context.commit("showHosts", val);
+      ensureUsableSelection(context); // turning it off erased the hosts: choose a usable one again
     },
 
     showISPInfo(context, val) {
@@ -1174,10 +1231,176 @@ function updateSelectedServers(context, isDenyMultihopServersFromSameCountry) {
   if (exitHost && !isServerContainsHost(state.serverExit, exitHost))
     context.commit("serverExitHostId", null);
 
+  // Free account: only servers and hosts it may use
+  ensureUsableSelection(context);
+
   //
   // Ensure if selected ports exists in a servers configuration or port is selected correctly
   //
   ensurePortsSelectedCorrectly(context);
+}
+
+// ---------------------------------------------------------------------------
+// OvpnPlus Free / Premium
+// A Free account must never be given a host it cannot use (the VPN server
+// refuses it). Nothing below changes anything until the account status is
+// known; for a Premium account it only drops a host the app chose earlier
+// for a Free account.
+// ---------------------------------------------------------------------------
+
+function hopKeys(isExit) {
+  return isExit
+    ? {
+        server: "serverExit",
+        hostId: "serverExitHostId",
+        auto: "serverExitHostIsAuto",
+        isRandom: "isRandomExitServer",
+      }
+    : {
+        server: "serverEntry",
+        hostId: "serverEntryHostId",
+        auto: "serverEntryHostIsAuto",
+        isRandom: "isRandomServer",
+      };
+}
+
+function isFreeAccount(context) {
+  return context.rootGetters["vpnState/isFreeAccount"] === true;
+}
+
+// a location the Free account may use for this hop (null when there is none):
+// "Random server" on -> a random usable location; otherwise the current one when
+// it is usable, else the fastest usable one (vpnState/fastestServer skips locked ones)
+function pickUsableServer(context, isExit) {
+  const state = context.state;
+  const k = hopKeys(isExit);
+  const usable = context.rootGetters["vpnState/usableActiveServers"] || [];
+
+  // multi-hop: never the other hop's server
+  const other = isExit ? state.serverEntry : state.serverExit;
+  const otherGw = state.isMultiHop && other ? other.gateway : null;
+  const candidates = usable.filter((s) => s && s.gateway !== otherGw);
+  if (candidates.length === 0) return null;
+  const find = (svr) =>
+    svr ? candidates.find((s) => s.gateway === svr.gateway) : null;
+
+  if (state[k.isRandom] === true)
+    return candidates[Math.floor(Math.random() * candidates.length)];
+
+  const current = find(state[k.server]);
+  if (current) return current;
+
+  if (!isExit) {
+    const fastest = find(context.rootGetters["vpnState/fastestServer"]);
+    if (fastest) return fastest;
+  }
+  return candidates[0];
+}
+
+// the server to select instead of 'srv' when the Free account cannot use 'srv'
+function usableServerOrFallback(context, srv, isExit) {
+  if (!srv || !srv.hosts || !isFreeAccount(context)) return srv;
+  if (!IsServerLocked(srv, false)) return srv;
+  return pickUsableServer(context, isExit) || srv; // none usable: unchanged
+}
+
+// Keeps a hop usable for a Free account:
+// 1. a location whose hosts are all Premium -> a usable location (see pickUsableServer)
+// 2. a Premium host -> no host
+// 3. a location with Free and Premium hosts and no host chosen by the user -> its
+//    best-ping Free host, marked "auto": it follows the pings while not connected,
+//    and it is dropped again when the account is Premium
+// While connected the selection is the server in use (e.g. the plan ended during the
+// connection), so 1, 2 and moving the "auto" host wait for the next connect, unless
+// 'isBeforeConnect' (a connect or reconnect is about to start).
+function ensureUsableHop(context, isExit, isBeforeConnect) {
+  const state = context.state;
+  const k = hopKeys(isExit);
+  const isFree = isFreeAccount(context);
+  const isInUse =
+    isBeforeConnect !== true &&
+    context.rootGetters["vpnState/isConnected"] === true;
+
+  let svr = state[k.server];
+  if (!isInUse && isFree && svr && svr.hosts && IsServerLocked(svr, false)) {
+    const usable = pickUsableServer(context, isExit);
+    if (usable && usable !== svr) context.commit(k.server, usable);
+    svr = state[k.server];
+  }
+  if (!svr || !svr.hosts) return;
+
+  let hostId = state[k.hostId];
+  if (
+    !isInUse &&
+    hostId &&
+    isFree &&
+    IsHostLocked(getServerHostById(svr, hostId), false)
+  ) {
+    context.commit(k.hostId, null);
+    hostId = state[k.hostId];
+  }
+
+  const isPinNeeded = isFree && IsServerMixed(svr);
+  let isAuto = state[k.auto] === true && !!hostId;
+  if (isAuto && !isPinNeeded) {
+    context.commit(k.hostId, null);
+    hostId = state[k.hostId];
+    isAuto = false;
+  }
+  if (isPinNeeded && (!hostId || (isAuto && !isInUse))) {
+    // while connected: the host the tunnel uses (e.g. the app started while the
+    // daemon was connected), so the card shows the host really in use
+    const best =
+      (isInUse ? getUsableHostInUse(context, isExit, svr) : null) ||
+      context.rootGetters["vpnState/funcGetBestUsableHost"](svr);
+    if (best && HostId(best) !== hostId)
+      context.commit(k.hostId, best.hostname);
+    hostId = state[k.hostId];
+    isAuto = !!hostId;
+  }
+
+  if (!hostId) isAuto = false;
+  if ((state[k.auto] === true) !== isAuto) context.commit(k.auto, isAuto);
+}
+
+// the host of 'svr' the tunnel is connected to, when the account may use it (else null)
+function getUsableHostInUse(context, isExit, svr) {
+  const vpnState = context.rootState ? context.rootState.vpnState : null;
+  const ci = vpnState ? vpnState.connectionInfo : null;
+  if (!ci || !svr || !svr.hosts) return null;
+  const host = isExit
+    ? getServerHostById(svr, ci.ExitHostname)
+    : getServerHostByIp(svr, ci.ServerIP);
+  return host && !IsHostLocked(host, false) ? host : null;
+}
+
+function ensureUsableSelection(context, isBeforeConnect = false) {
+  if (!context || !context.state || !context.rootGetters) return;
+  // until the account status is known nothing changes, not even a host chosen earlier
+  if (context.rootGetters["vpnState/isAccountStatusKnown"] !== true) return;
+  try {
+    ensureUsableHop(context, false, isBeforeConnect);
+    if (context.state.isMultiHop)
+      ensureUsableHop(context, true, isBeforeConnect);
+  } catch (e) {
+    console.error("ensureUsableSelection:", e);
+  }
+}
+
+// After connecting: a Free account on a location with Free and Premium hosts keeps
+// the host in use chosen (unless the user chose a host), so the card shows it and a
+// reconnect stays on a host the account may use.
+function pinHostInUse(context, isExit, host) {
+  if (!host || !isFreeAccount(context)) return;
+  const state = context.state;
+  const k = hopKeys(isExit);
+  const svr = state[k.server];
+  if (!svr || !IsServerMixed(svr) || IsHostLocked(host, false)) return;
+  if (state[k.hostId] && state[k.auto] !== true) return; // the user's own choice
+
+  if (HostId(host) !== state[k.hostId]) context.commit(k.hostId, host.hostname);
+  const isAuto = !!state[k.hostId];
+  if ((state[k.auto] === true) !== isAuto) context.commit(k.auto, isAuto);
 }
 
 function doSettingsUpgradeAfterSvrsUpdateIfRequired(context) {

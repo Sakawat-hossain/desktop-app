@@ -136,15 +136,10 @@
         <span class="infoLabel">LOCATION</span>
         <span v-if="!isInfoShown" class="infoValue noValue">—</span>
         <span v-else class="infoValue locationValue">
-          <img
-            v-if="flagUrl"
-            class="flag"
-            :src="flagUrl"
-            alt=""
-            width="14"
-            height="14"
-            v-on:error="onFlagError"
-          />
+          <!-- 21 x 15 rectangular flag, centred on the first 20 px text line -->
+          <span v-if="countryCode" class="flagBox">
+            <MapFlag :countryCode="countryCode" />
+          </span>
           <span class="valueText">{{ locationName || "Unknown" }}</span>
         </span>
       </div>
@@ -164,13 +159,12 @@
 </template>
 
 <script>
+import MapFlag from "@/components/map/map-flag.vue";
+
 const sender = window.ipcSender;
 
 export default {
-  data: () => ({
-    // flag image that failed to load (do not try to show it again)
-    failedFlagUrl: null,
-  }),
+  components: { MapFlag },
   methods: {
     onToggleIp() {
       this.$store.dispatch("uiState/isMapIpShown", !this.$store.state.uiState.isMapIpShown);
@@ -187,9 +181,6 @@ export default {
     },
     onIPv6View() {
       this.$store.dispatch("uiState/isIPv6View", true);
-    },
-    onFlagError(e) {
-      this.failedFlagUrl = e?.target?.getAttribute("src") || null;
     },
   },
   computed: {
@@ -255,12 +246,10 @@ export default {
       } else if (l.country) return `${l.country}`;
       return null;
     },
-    flagUrl: function () {
+    countryCode: function () {
       const l = this.currentLocation;
       if (!l || !l.country_code) return null;
-      const url = `flags/svg/${String(l.country_code).toUpperCase()}.svg`;
-      if (url === this.failedFlagUrl) return null;
-      return url;
+      return String(l.country_code).toUpperCase();
     },
     isOvpnPlusProvider: function () {
       const l = this.currentLocation;
@@ -330,9 +319,10 @@ export default {
   white-space: nowrap;
 }
 .ipValueRow {
+  min-height: 28px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
 }
 .ipValue {
@@ -377,6 +367,11 @@ button.eyeBtn svg,
 button.eyeBtn svg * {
   color: inherit;
   stroke: var(--text-muted);
+}
+// IP hidden: the "show" eye is a little brighter (it is the action to look for)
+button.eyeBtn[aria-pressed="false"] svg,
+button.eyeBtn[aria-pressed="false"] svg * {
+  stroke: var(--text-soft, var(--text-color));
 }
 button.eyeBtn:hover {
   background: var(--neutral-tint);
@@ -514,17 +509,15 @@ button.refreshBtn:hover .refreshIcon {
 .locationValue {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
 }
-.flag {
-  width: 14px;
-  height: 14px;
+// as tall as one text line: the flag sits in the middle of the first line
+.flagBox {
   flex: none;
-  margin-top: 3px; // centre on the first 20 px text line
-  border-radius: 50%;
-  object-fit: cover;
-  display: block;
+  height: 20px;
+  display: flex;
+  align-items: center;
 }
 .infoValue.infoAccent {
   color: var(--link-color);

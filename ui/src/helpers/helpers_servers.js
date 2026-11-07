@@ -21,7 +21,13 @@
 //
 
 import store from "@/store";
+import config from "@/config";
 import { IsRenderer } from "@/helpers/helpers";
+import {
+  IsServerLocked,
+  IsHostLocked,
+  HostDisplayName,
+} from "@/helpers/helpers_premium";
 
 export function IsServerSupportIPv6(server) {
   if (!server) return null;
@@ -178,4 +184,49 @@ export async function CheckAndNotifyInaccessibleServer(isExitServer, server, hos
     }
   }
   return true;
+}
+
+// OvpnPlus Free / Premium: true when the account may not use this location
+// (all its hosts are Premium) or, when 'host' is given, this host (a Premium
+// host). Always false for a Premium account and until the account status is known.
+export function IsLockedForAccount(server, host = null) {
+  if (store.getters["vpnState/isFreeAccount"] !== true) return false;
+  if (host) return IsHostLocked(host, false);
+  return IsServerLocked(server, false);
+}
+
+// For places without the server list's inline upgrade prompt (map, tray):
+// when the account may not use the server (or host) it shows "<name> is Premium"
+// with "Upgrade" (opens the account page) and "Not now", and returns false.
+// Returns true when the server may be used.
+export async function CheckAndNotifyLockedServer(server, host = null) {
+  if (!server || !IsLockedForAccount(server, host)) return true;
+
+  const name = host
+    ? HostDisplayName(server, host)
+    : server.city || server.country || "This server";
+  const dialogConfig = {
+    type: "info",
+    buttons: ["Upgrade", "Not now"],
+    defaultId: 0,
+    cancelId: 1,
+    message: `${name} is Premium`,
+    detail: "Upgrade on your account page to connect. Free locations still work.",
+  };
+
+  try {
+    let response = null;
+    if (IsRenderer()) {
+      const sender = window.ipcSender;
+      response = (await sender.showMessageBox(dialogConfig))?.response;
+      if (response === 0) sender.shellOpenExternal(config.URLAccount);
+    } else {
+      const { dialog, shell } = require("electron");
+      response = (await dialog.showMessageBox(dialogConfig))?.response;
+      if (response === 0) shell.openExternal(config.URLAccount);
+    }
+  } catch (e) {
+    console.error("CheckAndNotifyLockedServer:", e);
+  }
+  return false;
 }
