@@ -52,7 +52,56 @@
         <div v-else-if="!isInfoShown" class="statusText">
           Failed to load connection info
         </div>
-        <div v-else class="ipValue">{{ ip || "Unknown" }}</div>
+        <div v-else class="ipValueRow">
+          <span
+            class="ipValue"
+            v-bind:class="{ ipHidden: isIpHidden }"
+            :aria-hidden="isIpHidden ? 'true' : null"
+            >{{ ip || "Unknown" }}</span
+          >
+          <span v-if="isIpHidden" class="visuallyHidden">IP address hidden</span>
+          <button
+            v-if="ip"
+            class="eyeBtn"
+            v-on:click="onToggleIp"
+            :aria-label="isIpHidden ? 'Show IP address' : 'Hide IP address'"
+            :title="isIpHidden ? 'Show IP address' : 'Hide IP address'"
+            :aria-pressed="isIpHidden ? 'false' : 'true'"
+          >
+            <!-- eye: the IP is hidden, click to show it -->
+            <svg
+              v-if="isIpHidden"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <!-- eye crossed out: the IP is shown, click to hide it -->
+            <svg
+              v-else
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.7 17.7 0 0 1-2.6 3.6" />
+              <path d="M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+              <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+              <path d="M3 3l18 18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <button
@@ -123,6 +172,9 @@ export default {
     failedFlagUrl: null,
   }),
   methods: {
+    onToggleIp() {
+      this.$store.dispatch("uiState/isMapIpShown", !this.$store.state.uiState.isMapIpShown);
+    },
     onRefreshCurrLocation() {
       try {
         sender.GeoLookup();
@@ -141,6 +193,9 @@ export default {
     },
   },
   computed: {
+    isIpHidden() {
+      return this.$store.state.uiState.isMapIpShown !== true;
+    },
     isIPv6View: function () {
       return this.$store.getters["getIsIPv6View"];
     },
@@ -274,13 +329,65 @@ export default {
   line-height: 14px;
   white-space: nowrap;
 }
+.ipValueRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .ipValue {
+  min-width: 0;
   font-size: 15px;
   font-weight: 600;
   line-height: 22px;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   color: var(--text-color);
+  transition: filter 0.15s;
+}
+// hidden IP: blurred in place, so the row keeps its size and the address cannot be read or copied
+.ipHidden {
+  filter: blur(6px);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+button.eyeBtn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+}
+button.eyeBtn svg,
+button.eyeBtn svg * {
+  color: inherit;
+  stroke: var(--text-muted);
+}
+button.eyeBtn:hover {
+  background: var(--neutral-tint);
+}
+button.eyeBtn:hover svg,
+button.eyeBtn:hover svg * {
+  stroke: var(--text-color);
+}
+button.eyeBtn:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 1px;
 }
 .statusText {
   font-size: 13px;

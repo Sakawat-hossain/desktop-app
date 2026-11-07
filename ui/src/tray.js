@@ -46,9 +46,7 @@ let iconDisconnected = null;
 let iconPaused = null;
 let iconsConnecting = [];
 let iconConnectingIdx = 0;
-let iconConnectingTimer = null; // pending 'next connecting frame' timer (one at a time)
-const ICON_CONNECTING_FRAME_MS = 200;
-const ICON_CONNECTING_FRAMES_MAX = 8; // Windows: connecting(_lt).ico + connecting(_lt)_<1..7>.ico
+let iconConnectingIdxChanged = new Date().getTime();
 
 let iconConnected_ForLightTheme = null; // (Windows-only) Black icon for light background
 let iconDisconnected_ForLightTheme = null; // (Windows-only) Black icon for light background
@@ -113,8 +111,7 @@ export function InitTray(
         iconConnected = nativeImage.createFromPath(f + "connected.ico");
         iconDisconnected = nativeImage.createFromPath(f + "disconnected.ico");
         iconPaused = nativeImage.createFromPath(f + "paused.ico");
-        // the gold arc turns while connecting
-        iconsConnecting = loadConnectingFrames(f, "connecting", ".ico");
+        iconsConnecting.push(nativeImage.createFromPath(f + "connecting.ico"));
         // lightTheme
         iconConnected_ForLightTheme = nativeImage.createFromPath(
           f + "connected_lt.ico"
@@ -125,10 +122,8 @@ export function InitTray(
         iconPaused_ForLightTheme = nativeImage.createFromPath(
           f + "paused_lt.ico"
         );
-        iconsConnecting_ForLightTheme = loadConnectingFrames(
-          f,
-          "connecting_lt",
-          ".ico"
+        iconsConnecting_ForLightTheme.push(
+          nativeImage.createFromPath(f + "connecting_lt.ico")
         );
       }
       break;
@@ -221,18 +216,6 @@ export function InitTray(
   updateTrayIcon();
 }
 
-// Returns the 'connecting' animation frames: <name><ext> first, then
-// <name>_1<ext> ... <name>_7<ext>. Frames that are missing are skipped, so a
-// single <name><ext> gives the old static icon.
-function loadConnectingFrames(dir, name, ext) {
-  const frames = [nativeImage.createFromPath(dir + name + ext)];
-  for (let i = 1; i < ICON_CONNECTING_FRAMES_MAX; i++) {
-    const img = nativeImage.createFromPath(`${dir}${name}_${i}${ext}`);
-    if (img && !img.isEmpty()) frames.push(img);
-  }
-  return frames;
-}
-
 function updateTrayIcon() {
   if (tray == null) return;
 
@@ -253,14 +236,15 @@ function updateTrayIcon() {
     let icons = iconsConnecting;
     if (isLightIcons === false) icons = iconsConnecting_ForLightTheme;
     tray.setImage(icons[iconConnectingIdx % icons.length]);
-    // Only one frame timer at a time: store updates during connecting call
-    // this function too and must not start extra animation loops.
-    if (icons.length > 1 && iconConnectingTimer == null) {
-      iconConnectingTimer = setTimeout(() => {
-        iconConnectingTimer = null;
-        iconConnectingIdx += 1;
+    if (icons.length > 1) {
+      setTimeout(() => {
+        let now = new Date().getTime();
+        if (now - iconConnectingIdxChanged >= 200) {
+          iconConnectingIdx += 1;
+          iconConnectingIdxChanged = now;
+        }
         updateTrayIcon();
-      }, ICON_CONNECTING_FRAME_MS);
+      }, 200);
     }
     return;
   }

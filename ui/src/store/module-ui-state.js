@@ -35,6 +35,9 @@ export default {
 
     isIPv6View: false,
 
+    // map card: the IP address stays hidden (blurred) until the user clicks the eye button
+    isMapIpShown: false,
+
     isPauseResumeInProgress: false,
     //{
     //  state: AppUpdateStage.Downloading,
@@ -101,6 +104,9 @@ export default {
     isIPv6View(state, value) {
       state.isIPv6View = value;
     },
+    isMapIpShown(state, value) {
+      state.isMapIpShown = value === true;
+    },
     isPauseResumeInProgress(state, value) {
       state.isPauseResumeInProgress = value;
     },
@@ -125,6 +131,9 @@ export default {
     },
     isIPv6View(context, value) {
       context.commit("isIPv6View", value);
+    },
+    isMapIpShown(context, value) {
+      context.commit("isMapIpShown", value);
     },
   },
 };
