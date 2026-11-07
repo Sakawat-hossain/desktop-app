@@ -23,68 +23,13 @@
       </div>
     </div>
 
-    <!-- Buttons panel LEFT-->
-    <div class="buttonsPanelTopLeft" v-if="isBlured !== 'true'">
-      <button class="settingsBtn" v-on:click="onMinimize" title="Hide map">
-        <img src="@/assets/minimize.svg" />
-      </button>
-    </div>
-
-    <!-- Buttons panel RIGHT-->
-    <div
-      class="buttonsPanelTopRight"
-      v-bind:class="{
-        buttonsPanelTopRightNoFrameWindow: !isWindowHasFrame,
-      }"
-      v-if="isBlured !== 'true'"
-    >
-      <button
-        class="settingsBtn settingsBtnMarginLeft"
-        v-on:click="onSettings"
-        title="Settings"
-      >
-        <img src="@/assets/settings.svg" />
-      </button>
-
-      <button
-        class="settingsBtn settingsBtnMarginLeft"
-        v-on:click="onAccountSettings"
-        title="Account settings"
-      >
-        <img src="@/assets/user.svg" />
-      </button>
-
-      <button
-        class="settingsBtn"
-        v-on:click="centerCurrentLocation()"
-        title="Center map to current location"
-      >
-        <img src="@/assets/crosshair.svg" />
-      </button>
-    </div>
-
-    <!-- Bottom panel -->
     <!--
-    <div class="bottomButtonsPanel" v-if="isBlured !== 'true'">
-      <button class="settingsBtn" v-on:click="centerCurrentLocation(false)">
-        <img src="@/assets/crosshair.svg" />
-      </button>
-    </div>
+      The map tool buttons (Hide map, Settings, Account, Center map) live in the window title bar
+      (views/Component-Main.vue). It calls this component's centerCurrentLocation() through a template ref.
     -->
 
-    <div class="bottomPanel">
-      <transition name="fade">
-        <BlockSpeedGraph
-          v-if="isConnected && !$store.getters['vpnState/isPaused']"
-          class="speedGraph"
-        />
-      </transition>
-      <div class="flexRow">
-        <div class="geolocationInfoPanel">
-          <GeolocationInfoControl style="display: flex; align-items: center" />
-        </div>
-        <div calsss="flexRowRestSpace"></div>
-      </div>
+    <!-- Bottom panel: account notices + the "Connection details" card -->
+    <div class="bottomPanel" ref="bottomPanel">
       <div
         class="accountWillExpire"
         v-if="$store.getters['account/messageAccountExpiration']"
@@ -106,6 +51,19 @@
         <div class="flexRowRestSpace" />
         <button class="noBordersBtn">UPGRADE</button>
       </div>
+
+      <section class="detailsCard" aria-label="Connection details">
+        <transition name="fade">
+          <div
+            v-if="isConnected && !$store.getters['vpnState/isPaused']"
+            class="speedSection"
+          >
+            <BlockSpeedGraph />
+            <div class="cardDivider" aria-hidden="true"></div>
+          </div>
+        </transition>
+        <GeolocationInfoControl />
+      </section>
     </div>
     <!-- Map -->
     <div class="mapcontainer" ref="combined">
@@ -216,7 +174,6 @@ const sender = window.ipcSender;
 import popupControl from "@/components/controls/control-map-popup.vue";
 import GeolocationInfoControl from "@/components/controls/control-geolocation-info.vue";
 import BlockSpeedGraph from "@/components/blocks/block-speed-graph.vue";
-import { IsWindowHasFrame } from "@/platform/platform";
 
 import Image_world_map_dark from "@/assets/world_map_dark.svg";
 import Image_world_map_light from "@/assets/world_map_light.svg";
@@ -230,6 +187,10 @@ import {
 } from "@/helpers/helpers";
 
 const defaultZoomScale = 0.41;
+// gap between the bottom panel ("Connection details" card) and the map bottom edge (see .bottomPanel)
+const bottomPanelGapPx = 20;
+// minimal free map height above the card to keep centred locations above it
+const minVisibleMapHeightPx = 80;
 export default {
   components: {
     popupControl,
@@ -304,9 +265,6 @@ export default {
   }),
 
   computed: {
-    isWindowHasFrame: function () {
-      return IsWindowHasFrame();
-    },
     mapImage: function () {
       if (this.isDarkTheme) return Image_world_map_dark;
       return Image_world_map_light;
@@ -751,6 +709,21 @@ export default {
     },
     centerServer(server, noAnimation, isPopupRequired) {
       if (server == null) return;
+      if (noAnimation != null && noAnimation) {
+        this.centerServerNow(server, true, isPopupRequired);
+        return;
+      }
+      // Watchers call this before the DOM update, and the "Connection details" card can change
+      // its height in that same update (e.g. the speed section appears on connect):
+      // measure the card once the DOM is updated.
+      this.$nextTick(() => {
+        this.centerServerNow(server, false, isPopupRequired);
+      });
+    },
+    centerServerNow(server, noAnimation, isPopupRequired) {
+      if (server == null) return;
+      // the map can be hidden (unmounted) before a deferred call runs
+      if (!this.combinedDiv || !this.combinedDiv.isConnected) return;
       this.windowResizing(); // update canvas size
       let point = getCoordinatesBy(
         server.longitude,
@@ -759,10 +732,13 @@ export default {
         this.scale * this.map.naturalHeight,
       );
 
+      // The "Connection details" card covers the bottom of the map:
+      // put the location in the middle of the visible part above it.
+      const centerY = this.getVisibleMapCenterY();
+
       let scrollLeft =
         this.mapPos.mapLeftOffset + point.x - this.canvas.width / 2;
-      let scrollTop =
-        this.mapPos.mapTopOffset + point.y - this.canvas.height / 2;
+      let scrollTop = this.mapPos.mapTopOffset + point.y - centerY;
 
       if (noAnimation != null && noAnimation) {
         this.stopScroll();
@@ -772,10 +748,26 @@ export default {
         // Show popup for centered location
         this.showPopupForGeoLocation(server, isPopupRequired);
       } else {
-        this.startScroll(scrollLeft, scrollTop, isPopupRequired);
+        this.startScroll(scrollLeft, scrollTop, isPopupRequired, centerY);
       }
     },
-    startScroll(scrollToLeft, scrollTop, isPopupRequired) {
+    // Vertical position (in canvas pixels) where a centred location is placed:
+    // the middle of the map area that is not covered by the bottom panel
+    // (the "Connection details" card and its 20 px bottom gap).
+    getVisibleMapCenterY() {
+      const height = this.canvas ? this.canvas.height : 0;
+      const panel = this.$refs.bottomPanel;
+      if (!panel || !height) return height / 2;
+
+      let covered = panel.offsetHeight + bottomPanelGapPx;
+      // the speed section stays in the DOM while it fades out: it will be gone, do not count it
+      const leaving = panel.querySelector(".speedSection.fade-leave-active");
+      if (leaving) covered -= leaving.offsetHeight;
+      // very small map: not enough room above the card, use the real centre
+      if (height - covered < minVisibleMapHeightPx) return height / 2;
+      return (height - covered) / 2;
+    },
+    startScroll(scrollToLeft, scrollTop, isPopupRequired, centerY) {
       if (
         this.scrollTo != null &&
         this.scrollTo.left === scrollToLeft &&
@@ -790,6 +782,7 @@ export default {
       this.scrollTo = {
         left: scrollToLeft,
         top: scrollTop,
+        centerY: centerY != null ? centerY : this.canvas.height / 2,
         isPopupRequired,
         startTimeMs: performance.now(),
         startLeft: this.combinedDiv.scrollLeft,
@@ -824,7 +817,7 @@ export default {
         // Show popup for centered location
         this.showPopup(
           this.scrollTo.left + this.canvas.width / 2,
-          this.scrollTo.top + this.canvas.height / 2,
+          this.scrollTo.top + this.scrollTo.centerY,
           this.scrollTo.isPopupRequired,
         );
         this.stopScroll();
@@ -952,9 +945,11 @@ export default {
       if (zoomPoint && zoomPoint.srcElement != this.canvas) {
         // if event come from non-canvas element (mouse is over location point\text)
         // - necessary to recalculate mouse position accourding canvas area
+        // (relative to the map container: the window title bar sits above the map)
+        const rect = this.combinedDiv.getBoundingClientRect();
         zoomPoint = {
-          offsetX: zoomPoint.clientX - config.MinimizedUIWidth,
-          offsetY: zoomPoint.clientY,
+          offsetX: zoomPoint.clientX - rect.left,
+          offsetY: zoomPoint.clientY - rect.top,
         };
       }
       // save geo coordinates of center point (to be able to center same point after scalling)
@@ -1375,73 +1370,45 @@ $popup-background: var(--background-color);
   user-select: none;
 }
 
-.buttonsPanelBase {
+// ============== bottom panel: "Connection details" card =================
+// NOTE: if the 20 px gap changes, update 'bottomPanelGapPx' in the script (map centring uses it).
+.bottomPanel {
   position: absolute;
   z-index: 4;
-}
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
 
-.buttonsPanelTopBase {
-  @extend .buttonsPanelBase;
-  margin-top: 18px;
-}
+  display: flex;
+  flex-direction: column;
 
-.buttonsPanelTopRight {
-  @extend .buttonsPanelTopBase;
-  left: 100%;
-  margin-left: -166px;
-}
-
-.buttonsPanelTopRightNoFrameWindow {
-  margin-left: -250px;
-}
-
-.buttonsPanelTopLeft {
-  @extend .buttonsPanelTopBase;
-  left: 28px;
-}
-
-.bottomButtonsPanel {
-  @extend .buttonsPanelBase;
-  left: 100%;
-  margin-left: -54px;
-
-  top: 100%;
-  margin-top: -60px;
-}
-
-.bottomPanel {
-  @extend .buttonsPanelBase;
-  bottom: 0;
-  margin-bottom: 24px;
-  margin-left: 24px;
-  width: calc(100% - 48px);
-
+  // let map dragging pass through the free space; the card and buttons take the pointer
   pointer-events: none;
 }
 
-.speedGraph {
-  margin-bottom: 12px;
-}
-
-.geolocationInfoPanel {
-  //pointer-events: auto;
+.detailsCard {
   box-sizing: border-box;
-  width: 100%;
-  padding: 14px 18px;
-
+  padding: 14px 16px;
+  border-radius: 14px;
   background: var(--surface-color);
   border: 1px solid var(--surface-border);
-  border-radius: 14px;
-
-  min-height: 64px;
 
   display: flex;
-  align-items: center;
+  flex-direction: column;
+
+  pointer-events: auto;
+}
+
+.cardDivider {
+  height: 1px;
+  margin: 12px 0;
+  background: var(--surface-divider);
 }
 
 // ============== account expiration =================
 div.upgradeBase {
   min-height: 40px;
+  box-sizing: border-box;
   border-radius: 12px;
 
   display: flex;
@@ -1451,7 +1418,7 @@ div.upgradeBase {
   line-height: 14px;
   letter-spacing: -0.4px;
 
-  margin-top: 12px;
+  margin-bottom: 8px;
   padding-left: 12px;
   padding-right: 12px;
 }
@@ -1474,41 +1441,13 @@ div.accountWillExpire button {
 }
 div.trialWillExpire {
   @extend .upgradeBase;
-  background: #ffe3a3;
-  color: #6b4a00;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent-ring);
+  color: var(--text-color);
 }
 div.trialWillExpire button {
-  color: #6b4a00;
-}
-
-// ============== settings =================
-
-.settingsBtnMarginLeft {
-  margin-left: 24px;
-}
-.settingsBtn {
-  float: right;
-
-  width: 32px;
-  height: 32px;
-
-  padding: 0px;
-  border: 1px solid var(--surface-border);
-  border-radius: 50%;
-  background-color: var(--surface-color);
-  outline-width: 0;
-  cursor: pointer;
-
-  box-shadow: none;
-
-  // centering content
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.settingsBtn:hover {
-  border-color: var(--accent-color);
+  color: var(--link-color);
+  font-weight: 600;
 }
 
 // ============== POPUP =================

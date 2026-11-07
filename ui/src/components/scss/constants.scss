@@ -25,6 +25,8 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
     --danger-dot: #E5484D;
     --good-text: #166534;
     --good-background: #E3F5E9;
+    --control-border: #D4D4D8;   // round icon buttons on a card (pause, refresh)
+    --text-soft: #3F3F46;        // icons that sit between text and muted
 
     --text-color-rgb: 22, 22, 26; // #16161A
     --text-color: rgba(var(--text-color-rgb));
@@ -73,6 +75,8 @@ $base-font-family: "MainIVPNFont", "SF Pro Text", "Helvetica", "sans-serif";
          --danger-dot: #F87171;
          --good-text: #86EFAC;
          --good-background: #14261B;
+         --control-border: #2E2E34;
+         --text-soft: #D4D4D8;
          --accent-soft-background: rgba(255, 176, 0, 0.16);
 
          --text-color-rgb: 255, 255, 255;

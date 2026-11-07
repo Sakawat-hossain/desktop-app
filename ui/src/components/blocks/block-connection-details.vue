@@ -1,9 +1,8 @@
 <template>
+  <!-- One card of 48 px rows; the dividers come from '.detailsCard > * + *' -->
   <div class="detailsCard">
     <!-- FIREWALL (kill switch) -->
-
     <OnOffButtonControl
-      class="cardRow"
       v-bind:class="{ lowOpacity: IsPaused }"
       text="Kill switch"
       :onTextClick="onShowFirewallConfig"
@@ -20,72 +19,92 @@
           : null
       "
       :isProgress="firewallIsProgress"
-    />
+    >
+      <template #icon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3 4 6v6c0 4.5 3.4 8.2 8 9 4.6-.8 8-4.5 8-9V6z" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      </template>
+    </OnOffButtonControl>
 
-    <div
+    <!-- ANTITRACKER -->
+    <OnOffButtonControl
       v-if="features.AntiTracker"
       v-bind:class="{ lowOpacity: PrioritizedDNS != null }"
+      text="AntiTracker"
+      :onTextClick="onShowAntiTrackerConfig"
+      :textClickTooltip="`AntiTracker settings` + (PrioritizedDNS ? `\n\nNote: ${PrioritizedDNS.Description}` : '')"
+      description="Block trackers whilst connected to VPN"
+      :onChecked="PrioritizedDNS ? onShowAntiTrackerConfig: antitrackerOnChecked"
+      :isChecked="PrioritizedDNS ? false : this.$store.state.settings.antiTracker?.Enabled"
+      :switcherOpacity="
+        !IsConnected ||
+        this.$store.getters['vpnState/isInverseSplitTunnelAnyDns']
+          ? 0.4
+          : 1
+      "
+      :checkedColor="
+        this.$store.state.settings.antiTracker?.Hardcore ? '#77152a' : null
+      "
+      :isProgress="antitrackerIsProgress"
     >
-      <div class="horizontalLine" />
-
-      <OnOffButtonControl
-        text="AntiTracker"
-        :onTextClick="onShowAntiTrackerConfig"
-        :textClickTooltip="`AntiTracker settings` + (PrioritizedDNS ? `\n\nNote: ${PrioritizedDNS.Description}` : '')"
-        description="Block trackers whilst connected to VPN"
-        :onChecked="PrioritizedDNS ? onShowAntiTrackerConfig: antitrackerOnChecked"
-        :isChecked="PrioritizedDNS ? false : this.$store.state.settings.antiTracker?.Enabled"
-        :switcherOpacity="
-          !IsConnected ||
-          this.$store.getters['vpnState/isInverseSplitTunnelAnyDns']
-            ? 0.4
-            : 1
-        "
-        :checkedColor="
-          this.$store.state.settings.antiTracker?.Hardcore ? '#77152a' : null
-        "
-        :isProgress="antitrackerIsProgress"
-      />
-    </div>
+      <template #icon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3l18 18" />
+          <path d="M10.6 5.1A9.6 9.6 0 0 1 12 5c5 0 9 4.5 10 7-.5 1.2-1.3 2.5-2.4 3.6M6.6 6.6C4.4 8 2.8 10 2 12c1 2.5 5 7 10 7 1.9 0 3.6-.6 5-1.5" />
+          <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+        </svg>
+      </template>
+    </OnOffButtonControl>
 
     <!-- PROTOCOL -->
     <SelectButtonControl
-      class="cardRow leftPanelBlock"
       :click="onShowPorts"
       text="Protocol"
       v-bind:description="portProtocolText"
       title="Connection settings"
-    />
+    >
+      <template #icon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12h16M4 6h16M4 18h10" />
+        </svg>
+      </template>
+    </SelectButtonControl>
 
     <!-- SPLIT TUNNEL -->
     <transition name="fade">
-      <div v-if="isLinux && IsSplitTunnelEnabled" class="cardRow">
-        <SplitTunnelControl class="leftPanelBlock" />
-      </div>
+      <SplitTunnelControl
+        v-if="isLinux && IsSplitTunnelEnabled"
+        class="leftPanelBlock"
+      />
     </transition>
 
     <!-- WIFI -->
     <transition name="fade">
-      <div
+      <SelectButtonControl
         v-if="
           wifiSSID &&
           (isTrustedNetworksControlActive || isConnectVPNOnInsecureNetwork)
         "
-        class="cardRow"
+        :click="onShowWifiConfig"
+        text="Wi-Fi network"
+        :description="wifiSSID"
+        :markerText="WiFiMarkerText"
+        :markerColor="WiFiMarkerColor"
+        :markerTextColor="'var(--text-color-details)'"
+        title="Wi-Fi control settings"
       >
-        <SelectButtonControl
-          class="leftPanelBlock"
-          :click="onShowWifiConfig"
-          text="Wi-Fi network"
-          :description="wifiSSID"
-          :markerText="WiFiMarkerText"
-          :markerColor="WiFiMarkerColor"
-          :markerTextColor="'var(--text-color-details)'"
-          title="Wi-Fi control settings"
-        />
-      </div>
+        <template #icon>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2.5 8.8a14 14 0 0 1 19 0" />
+            <path d="M5.6 12.2a9.5 9.5 0 0 1 12.8 0" />
+            <path d="M8.8 15.5a5 5 0 0 1 6.4 0" />
+            <path d="M12 19.2h.01" stroke-width="2.6" />
+          </svg>
+        </template>
+      </SelectButtonControl>
     </transition>
-
   </div>
 </template>
 
@@ -140,17 +159,13 @@ export default {
       const isV2Ray = !!this.$store.getters["settings/getV2RayConfig"];
       const isObfsProxy =
         this.$store.getters["settings/isConnectionUseObfsproxy"];
+      const vpnName = enumValueName(VpnTypeEnum, protocol);
+      const portType = enumValueName(PortTypeEnum, port.type);
       if (!isV2Ray && (isMH === true || isObfsProxy)) {
         // do not show port number for multi-hop connections
-        return `${enumValueName(VpnTypeEnum, protocol)}/${enumValueName(
-          PortTypeEnum,
-          port.type,
-        )}`;
+        return `${vpnName} · ${portType}`;
       }
-      return `${enumValueName(VpnTypeEnum, protocol)}/${enumValueName(
-        PortTypeEnum,
-        port.type,
-      )} ${port.port}`;
+      return `${vpnName} · ${portType} ${port.port}`;
     },
     isTrustedNetworksControlActive() {
       let wifiSettings = this.$store.state.settings.daemonSettings.WiFi;
@@ -287,50 +302,36 @@ export default {
 <style scoped lang="scss">
 @import "@/components/scss/constants";
 
-.block {
-  @extend .left_panel_block;
+// the row icons come from this template (slots): the global 'html *' rule
+// gives them the text colour, so let them take the colour the row sets
+svg,
+svg * {
+  color: inherit;
 }
 
-.datails_text {
-  color: var(--text-color-details);
-  font-size: 13px;
-  line-height: 18px;
-
-  letter-spacing: -0.08px;
-  text-transform: uppercase;
-}
-
-#connection_header {
-  min-height: 51px;
-  background: var(--background-color-alternate);
-}
-
+// side margins 16 px; the 8 px gaps above/below come from Component-Control
 .detailsCard {
-  margin: 10px 16px 12px;
+  flex: none;
+  margin: 0 16px;
   border: 1px solid var(--surface-border);
   border-radius: 14px;
   background: var(--surface-color);
   overflow: hidden;
 }
-.cardRow + .cardRow,
 .detailsCard > * + * {
   border-top: 1px solid var(--surface-divider);
 }
 
+// Split Tunnel row (Linux), same height as the other rows
 .leftPanelBlock {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 54px;
+  min-height: 48px;
   box-sizing: border-box;
-  padding: 0 14px;
+  padding: 6px 14px;
 }
 
-div.blockWithMrgings {
-  @extend .left_panel_element;
-  margin-top: 18px;
-  margin-bottom: 18px;
-}
 .lowOpacity {
   opacity: 0.5;
 }

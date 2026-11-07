@@ -138,10 +138,11 @@ export default {
 
       const expirationDate = new Date(state.accountStatus.ActiveUntil * 1000);
       const currDate = new Date();
-      var diffDays = Math.round((expirationDate - currDate) / oneDay);
+      // whole days left, rounded up like the plan card ('3 days and 10 minutes' = 4 days)
+      var diffDays = Math.ceil((expirationDate - currDate) / oneDay);
       if (diffDays > 3) return null;
 
-      if (diffDays < 0 || state.accountStatus.Active === false)
+      if (expirationDate <= currDate || state.accountStatus.Active === false)
         return "Your subscription has expired";
       if (state.accountStatus.WillAutoRebill === true) return null;
 

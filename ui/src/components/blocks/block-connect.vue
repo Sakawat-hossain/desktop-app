@@ -58,7 +58,7 @@
       :aria-label="powerTitle"
       v-on:click="onPowerClick"
     >
-      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
         <path d="M12 3v8" />
         <path d="M6.4 6.6a8 8 0 1 0 11.2 0" />
       </svg>
@@ -66,8 +66,10 @@
     </button>
 
     <!-- STATUS -->
-    <div class="statusBlock" role="status">
-      <div class="statusTitle">
+    <div class="statusBlock">
+      <!-- Only the title is a live region (as before the redesign): the lines below hold
+           per-second timers (connected time, pause countdown) that must not be announced. -->
+      <div class="statusTitle" role="status">
         {{ statusTitle }}
         <!-- Unhealthy connection notification. -->
         <button v-if="isConnectionUnhealthy" class="noBordersBtn connectionWarningBtn" aria-label="Unhealthy connection">
@@ -334,33 +336,50 @@ export default {
 @import "@/components/scss/constants";
 @import "@/components/scss/popup";
 
+// the global 'html *' rule gives every element the text colour:
+// let the icons take the colour of their button instead
+svg,
+svg * {
+  color: inherit;
+}
+
+// Layout budget (B design): 18 + 116 + 12 + 70 + 12 + 52 + 12 = 292 px when connected.
+// The hero sits above the cards below it so its pop-up menus are not covered by them.
 .hero {
   position: relative;
-  padding: 12px 20px 12px;
+  z-index: 2;
+  flex: none;
+  box-sizing: border-box;
+  padding: 18px 16px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 // ---------- power button ----------
+// 116 px disc with a 10 px tinted ring and a 1 px ring line (box-shadows: no layout space)
 .powerBtn {
   position: relative;
-  margin: 10px;
-  width: 112px;
-  height: 112px;
+  flex: none;
+  box-sizing: border-box;
+  width: 116px;
+  height: 116px;
+  margin: 0;
+  padding: 0;
   border-radius: 50%;
   border: 2px solid var(--surface-border);
   background: var(--surface-color);
-  box-shadow: 0 0 0 9px var(--surface-color);
+  box-shadow: 0 0 0 10px var(--surface-color), 0 0 0 11px var(--surface-border);
   color: var(--text-color);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   cursor: pointer;
-  transition: background-color 0.25s, box-shadow 0.25s, color 0.25s;
+  transition: background-color 0.25s, box-shadow 0.25s, color 0.25s,
+    border-color 0.25s;
   -webkit-app-region: no-drag;
 }
 .powerBtn:hover {
@@ -368,30 +387,34 @@ export default {
 }
 .powerBtn:focus-visible {
   outline: 2px solid var(--accent-color);
-  outline-offset: 12px;
+  outline-offset: 4px;
 }
 .powerBtn.on {
   border-color: var(--accent-color);
   background: var(--accent-color);
   color: var(--accent-text-color);
-  box-shadow: 0 0 0 9px var(--accent-tint), 0 0 0 10px var(--accent-ring);
+  box-shadow: 0 0 0 10px var(--accent-tint), 0 0 0 11px var(--accent-ring);
 }
 .powerBtn.on:hover {
+  border-color: var(--accent-color-hover);
   background: var(--accent-color-hover);
 }
 .powerBtn.paused {
   border-color: var(--accent-color);
   color: var(--link-color);
+  box-shadow: 0 0 0 10px var(--accent-tint), 0 0 0 11px var(--accent-ring);
 }
+// progress: a gold arc running along the outer ring line
 .powerBtn.busy::after {
   content: "";
   position: absolute;
-  inset: -12px;
+  inset: -13px;
   border-radius: 50%;
   border: 2px solid transparent;
   border-top-color: var(--accent-color);
   border-right-color: var(--accent-color);
   animation: powerSpin 1s linear infinite;
+  pointer-events: none;
 }
 @keyframes powerSpin {
   to {
@@ -399,7 +422,9 @@ export default {
   }
 }
 .powerLabel {
-  font-size: 11px;
+  color: inherit;
+  font-size: 12px;
+  line-height: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -409,24 +434,23 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   text-align: center;
 }
 .statusTitle {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 23px;
-  line-height: 27px;
+  font-size: 24px;
+  line-height: 28px;
   font-weight: 700;
-  letter-spacing: -0.3px;
 }
 .statusLine {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  line-height: 16px;
+  line-height: 18px;
   font-variant-numeric: tabular-nums;
 }
 .statusLine .dot {
@@ -462,9 +486,10 @@ export default {
 }
 .ipLine {
   font-size: 12.5px;
-  line-height: 15px;
+  line-height: 18px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 // ---------- pause corner ----------
@@ -475,20 +500,26 @@ export default {
   z-index: 5;
 }
 .cornerBtn {
+  box-sizing: border-box;
   width: 34px;
   height: 34px;
-  border: 1px solid var(--surface-border);
+  border: 1px solid var(--control-border);
   border-radius: 50%;
   background: var(--surface-color);
-  color: var(--text-color);
+  color: var(--text-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  -webkit-app-region: no-drag;
 }
 .cornerBtn:hover {
   border-color: var(--accent-color);
+}
+.cornerBtn:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
 }
 .cornerBtnResume {
   background: var(--accent-color);

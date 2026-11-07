@@ -1,5 +1,32 @@
 <template>
-  <div class="titleBar" v-show="!isWindowHasFrame">
+  <!-- Inline window buttons: placed inside a view's own title bar
+       (main window, views/Component-Main.vue). 28x28 icon buttons. -->
+  <div v-if="inline" class="winBtnsInline" v-show="!isWindowHasFrame">
+    <button
+      type="button"
+      title="Minimize"
+      aria-label="Minimize"
+      v-if="minimizable"
+      class="winBtnInline"
+      v-on:click="onMinimize()"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 12h16" /></svg>
+    </button>
+
+    <button
+      type="button"
+      title="Close"
+      aria-label="Close"
+      v-if="closable"
+      class="winBtnInline winBtnInlineClose"
+      v-on:click="onClose()"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg>
+    </button>
+  </div>
+
+  <!-- 24 px title strip at the top of the window (settings, update and other windows) -->
+  <div v-else class="titleBar" v-show="!isWindowHasFrame">
     <button
       title="Minimize"
       style="margin-top: 1px"
@@ -35,6 +62,13 @@ import { IsWindowHasFrame } from "@/platform/platform";
 const sender = window.ipcSender;
 
 export default {
+  props: {
+    // true: only the Minimize / Close buttons, laid out inline (no absolute 24 px strip)
+    inline: {
+      type: Boolean,
+      default: false,
+    },
+  },
   data: function () {
     return {
       closable: true,
@@ -104,5 +138,48 @@ export default {
 
 .winBtnClose:hover {
   background: #e81123;
+}
+
+// ===== Inline window buttons (title bar of the main window) =====
+.winBtnsInline {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.winBtnInline {
+  -webkit-app-region: no-drag;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+// the global 'html *' color rule would otherwise give the icon the text colour
+.winBtnInline svg,
+.winBtnInline svg * {
+  color: inherit;
+}
+.winBtnInline:hover {
+  background: var(--neutral-tint);
+  color: var(--text-color);
+}
+.winBtnInline.winBtnInlineClose:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+.winBtnInline:focus {
+  outline: none;
+}
+.winBtnInline:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
 }
 </style>

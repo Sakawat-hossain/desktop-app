@@ -42,6 +42,15 @@ function applyFeatureLimits(state) {
     state.antiTracker = { ...state.antiTracker, Enabled: false };
 }
 
+// Windows: older builds kept the app out of the taskbar by default
+// (showAppInSystemDock: false). Show it once on upgrade; the flag makes sure a
+// user who turns it off afterwards keeps that choice.
+function applyTaskbarDefaultOnce(state) {
+  if (state.showAppInSystemDockMigrated === true) return;
+  if (Platform() === PlatformEnum.Windows) state.showAppInSystemDock = true;
+  state.showAppInSystemDockMigrated = true;
+}
+
 const defaultPort = { port: 2049, type: PortTypeEnum.UDP };
 
 const getDefaultState = () => {
@@ -204,6 +213,8 @@ const getDefaultState = () => {
     minimizedUI: false,
     minimizeToTray: true,
     showAppInSystemDock: false,
+    // true once the Windows 'show in taskbar' default was applied (or the user chose)
+    showAppInSystemDockMigrated: false,
     serversSortType: ServersSortTypeEnum.City,
     colorTheme: ColorTheme.system,
     colorThemeTrayIcon: ColorThemeTrayIcon.auto,
@@ -233,6 +244,11 @@ const getDefaultState = () => {
     defState.showAppInSystemDock = true; // 'skip-taskbar' not applicable for Linux (since Electron v20)
   }
 
+  if (Platform() === PlatformEnum.Windows) {
+    // the app has a taskbar button while its window is open
+    defState.showAppInSystemDock = true;
+  }
+
   return defState;
 };
 
@@ -248,6 +264,7 @@ export default {
     replaceState(state, val) {
       Object.assign(state, val);
       applyFeatureLimits(state);
+      applyTaskbarDefaultOnce(state);
     },
 
     resetToDefaults(state) {
@@ -469,6 +486,7 @@ export default {
     },
     showAppInSystemDock(state, val) {
       state.showAppInSystemDock = val;
+      state.showAppInSystemDockMigrated = true; // an explicit choice: never override it
     },
     serversSortType(state, val) {
       state.serversSortType = val;

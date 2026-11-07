@@ -37,17 +37,26 @@ export default {
 </script>
 
 <style scoped lang="scss">
+// the global 'html *' rule gives every element the text colour:
+// let the icons take the colour of their tile instead
+svg,
+svg * {
+  color: inherit;
+}
+
 .speedCard {
+  flex: none;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
+  height: 52px;
   box-sizing: border-box;
   border: 1px solid var(--surface-border);
   border-radius: 14px;
   background: var(--surface-color);
 }
 .half {
-  padding: 9px 12px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -71,7 +80,7 @@ export default {
 }
 .iconUp {
   background: var(--neutral-tint);
-  color: var(--text-muted);
+  color: var(--text-soft);
 }
 .texts {
   display: flex;
@@ -82,12 +91,12 @@ export default {
 }
 .label {
   font-size: 11px;
-  line-height: 13px;
+  line-height: 14px;
   color: var(--text-faint);
 }
 .value {
   font-size: 14px;
-  line-height: 17px;
+  line-height: 18px;
   font-weight: 600;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;

@@ -6,8 +6,9 @@
     Div should be 'transparent' for mouse events -->
     <div v-if="!isWindowHasFrame" class="border"></div>
 
-    <!-- ability to move by mouse when no title for window -->
-    <div class="title">
+    <!-- ability to move by mouse when no title for window
+    (not for the main view: it draws its own 44 px title bar, views/Component-Main.vue) -->
+    <div class="title" v-if="isTitleStripVisible">
       <CustomTitleBar />
     </div>
 
@@ -37,6 +38,17 @@ export default {
     },
     isLoggedIn: function () {
       return this.$store.getters["account/isLoggedIn"];
+    },
+    // The 24 px drag strip with Minimize/Close is used by every window except the main view ("/"),
+    // which has its own title bar. Also hidden while the first route is not resolved yet
+    // (the router's start location is "/" with no matched route), so it does not flash on the main window.
+    isTitleStripVisible: function () {
+      const route = this.$route;
+      if (!route) return true;
+      if (route.name === "Main") return false;
+      if (route.path === "/" && (!route.matched || route.matched.length === 0))
+        return false;
+      return true;
     },
   },
   watch: {

@@ -1,113 +1,114 @@
 <template>
-  <div id="main">
-    <!-- Loading connection info ... -->
-    <div
-      v-if="
-        (!isIPv6View && isRequestingLocationIPv4) ||
-        (isIPv6View && isRequestingLocationIPv6)
-      "
-      style="text-align: center"
-      class="descriptipn"
-    >
-      Loading connection info ...
-    </div>
+  <div class="geoInfo">
+    <!-- IP row: the address, or the loading / failed status -->
+    <div class="ipRow">
+      <div class="ipCell">
+        <div class="labelRow">
+          <span class="infoLabel">IP ADDRESS</span>
 
-    <!-- Main view -->
-    <div
-      v-if="
-        (!isIPv6View && !isRequestingLocationIPv4) ||
-        (isIPv6View && !isRequestingLocationIPv6)
-      "
-      style="width: 100%"
-    >
-      <!-- Failed to load connection info -->
-      <div
-        v-if="!isInfoAvailableIPv4 && !isInfoAvailableIPv6"
-        style="text-align: center"
-        class="descriptipn"
-      >
-        Failed to load connection info
-        <div>
-          <button
-            class="noBordersBtn"
-            v-on:click="onRefreshCurrLocation"
-            style="pointer-events: auto"
-          >
-            <img width="10" height="10" src="@/assets/refresh.svg" />
-          </button>
-        </div>
-      </div>
-      <!-- connection info -->
-      <div v-if="isInfoAvailableIPv4 || isInfoAvailableIPv6">
-        <!-- IPV4 / IPV6 buttons-->
-        <div class="flexRow" v-if="isInfoAvailableIPv4 && isInfoAvailableIPv6">
-          <div class="flexRow leftColumn">
-            <div class="flexRow badgeContainer">
+          <template v-if="isInfoShown">
+            <!-- IPv4 / IPv6 switch (only when both addresses are known) -->
+            <div
+              v-if="isInfoAvailableIPv4 && isInfoAvailableIPv6"
+              class="ipToggle"
+              role="group"
+              aria-label="IP version"
+            >
               <button
-                class="badge"
-                v-bind:class="{ badgeSelected: !isIPv6View }"
+                class="ipToggleBtn"
+                v-bind:class="{ ipToggleBtnSelected: !isIPv6View }"
+                v-bind:aria-pressed="!isIPv6View ? 'true' : 'false'"
                 v-on:click="onIPv4View"
-                style="pointer-events: auto"
               >
                 IPv4
               </button>
-
               <button
-                class="badge"
-                v-bind:class="{ badgeSelected: isIPv6View }"
+                class="ipToggleBtn"
+                v-bind:class="{ ipToggleBtnSelected: isIPv6View }"
+                v-bind:aria-pressed="isIPv6View ? 'true' : 'false'"
                 v-on:click="onIPv6View"
-                style="pointer-events: auto"
               >
                 IPv6
               </button>
             </div>
-          </div>
-          <span v-if="!isIPv4andIPv6LocationsEqual" style="opacity: 0.5">
-            Location does not match
-          </span>
-        </div>
+            <span v-else-if="ipVersion" class="ipTag">{{ ipVersion }}</span>
 
-        <div class="infoGrid">
-        <div class="infoCell">
-          <div class="infoLabel">IP ADDRESS</div>
-
-          <div class="flexRow infoValue" style="overflow: hidden">
-            <div
-              style="
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+            <span
+              v-if="
+                isInfoAvailableIPv4 &&
+                isInfoAvailableIPv6 &&
+                !isIPv4andIPv6LocationsEqual
               "
+              class="mismatchText"
             >
-              {{ ip }}
-            </div>
-
-            <div style="vertical-align: top">
-              <button
-                class="noBordersBtn"
-                v-on:click="onRefreshCurrLocation"
-                style="
-                  padding: 0px;
-                  margin: 0px;
-                  margin-left: 4px;
-                  pointer-events: auto;
-                "
-              >
-                <img width="10" height="10" src="@/assets/refresh.svg" />
-              </button>
-            </div>
-          </div>
+              Location does not match
+            </span>
+          </template>
         </div>
 
-        <div class="infoCell">
-          <div class="infoLabel">LOCATION</div>
-          <div class="infoValue">{{ locationName }}</div>
+        <!-- Loading connection info ... -->
+        <div v-if="isLoading" class="statusText">Loading connection info ...</div>
+        <!-- Failed to load connection info -->
+        <div v-else-if="!isInfoShown" class="statusText">
+          Failed to load connection info
         </div>
-        <div class="infoCell">
-          <div class="infoLabel">PROVIDER</div>
-          <div class="infoValue" v-bind:class="{ infoAccent: isp === 'OvpnPlus' }">{{ isp }}</div>
-        </div>
-        </div>
+        <div v-else class="ipValue">{{ ip || "Unknown" }}</div>
+      </div>
+
+      <button
+        v-if="!isLoading"
+        class="refreshBtn"
+        v-on:click="onRefreshCurrLocation"
+        aria-label="Refresh IP address"
+        title="Refresh IP address"
+      >
+        <svg
+          class="refreshIcon"
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20 12a8 8 0 1 1-2.34-5.66L20 8.5" />
+          <path d="M20 3.5v5h-5" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="cardDivider" aria-hidden="true"></div>
+
+    <!-- LOCATION / PROVIDER: always shown, so the card keeps its height while the info loads -->
+    <div class="detailsGrid">
+      <div class="infoCell">
+        <span class="infoLabel">LOCATION</span>
+        <span v-if="!isInfoShown" class="infoValue noValue">—</span>
+        <span v-else class="infoValue locationValue">
+          <img
+            v-if="flagUrl"
+            class="flag"
+            :src="flagUrl"
+            alt=""
+            width="14"
+            height="14"
+            v-on:error="onFlagError"
+          />
+          <span class="valueText">{{ locationName || "Unknown" }}</span>
+        </span>
+      </div>
+      <div class="infoCell providerCell">
+        <span class="infoLabel">PROVIDER</span>
+        <span v-if="!isInfoShown" class="infoValue noValue">—</span>
+        <span
+          v-else
+          class="infoValue valueText"
+          v-bind:class="{ infoAccent: isOvpnPlusProvider }"
+        >
+          {{ isp || "Unknown" }}
+        </span>
       </div>
     </div>
   </div>
@@ -117,6 +118,10 @@
 const sender = window.ipcSender;
 
 export default {
+  data: () => ({
+    // flag image that failed to load (do not try to show it again)
+    failedFlagUrl: null,
+  }),
   methods: {
     onRefreshCurrLocation() {
       try {
@@ -130,6 +135,9 @@ export default {
     },
     onIPv6View() {
       this.$store.dispatch("uiState/isIPv6View", true);
+    },
+    onFlagError(e) {
+      this.failedFlagUrl = e?.target?.getAttribute("src") || null;
     },
   },
   computed: {
@@ -153,17 +161,37 @@ export default {
     isRequestingLocationIPv6: function () {
       return this.$store.state.isRequestingLocationIPv6;
     },
+    isLoading: function () {
+      return (
+        (!this.isIPv6View && this.isRequestingLocationIPv4) ||
+        (this.isIPv6View && this.isRequestingLocationIPv6)
+      );
+    },
+    // the connection info is loaded (not loading and not failed)
+    isInfoShown: function () {
+      return (
+        !this.isLoading && (this.isInfoAvailableIPv4 || this.isInfoAvailableIPv6)
+      );
+    },
+
+    // location info for the current view (IPv4 or IPv6)
+    currentLocation: function () {
+      if (this.isIPv6View) return this.$store.state.locationIPv6;
+      return this.$store.state.location;
+    },
 
     ip: function () {
-      let l = this.$store.state.location;
-      if (this.isIPv6View) l = this.$store.state.locationIPv6;
+      const l = this.currentLocation;
       if (!l || !l.ip_address) return null;
       return l.ip_address;
     },
+    ipVersion: function () {
+      if (!this.ip) return null;
+      return this.ip.includes(":") ? "IPv6" : "IPv4";
+    },
 
     locationName: function () {
-      let l = this.$store.state.location;
-      if (this.isIPv6View) l = this.$store.state.locationIPv6;
+      const l = this.currentLocation;
       if (!l) return null;
 
       if (l.city) {
@@ -172,9 +200,19 @@ export default {
       } else if (l.country) return `${l.country}`;
       return null;
     },
+    flagUrl: function () {
+      const l = this.currentLocation;
+      if (!l || !l.country_code) return null;
+      const url = `flags/svg/${String(l.country_code).toUpperCase()}.svg`;
+      if (url === this.failedFlagUrl) return null;
+      return url;
+    },
+    isOvpnPlusProvider: function () {
+      const l = this.currentLocation;
+      return !!l && l.isIvpnServer == true;
+    },
     isp: function () {
-      let l = this.$store.state.location;
-      if (this.isIPv6View) l = this.$store.state.locationIPv6;
+      const l = this.currentLocation;
       if (!l) return null;
       if (l.isIvpnServer == true) return "OvpnPlus";
       if (!l.isp) return null;
@@ -188,74 +226,204 @@ export default {
 <style scoped lang="scss">
 @import "@/components/scss/constants";
 
-#main {
-  font-size: 12px;
-  line-height: 20px;
-  min-height: 40px;
+// IP / location / provider part of the map's "Connection details" card (the card is drawn by Component-Map).
+// NOTE: every element gets an explicit colour because App.vue sets "html * { color }" for all elements.
+
+.geoInfo {
   width: 100%;
-}
-.infoGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-.infoCell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+}
+
+// ---------- IP row ----------
+.ipRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 12px;
+  align-items: center;
+}
+.ipCell {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.labelRow {
+  min-height: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 2px;
 }
 .infoLabel {
   font-size: 11px;
-  line-height: 13px;
   font-weight: 600;
+  line-height: 14px;
   letter-spacing: 0.06em;
+  white-space: nowrap;
   color: var(--text-faint);
+}
+.ipTag {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--neutral-tint);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.ipValue {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  color: var(--text-color);
+}
+.statusText {
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--text-muted);
+}
+.mismatchText {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--text-faint);
+}
+
+// IPv4 / IPv6 switch: the tag drawn as a two-part segmented control
+.ipToggle {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px;
+  border-radius: 5px;
+  background: var(--neutral-tint);
+}
+button.ipToggleBtn {
+  position: relative;
+  height: 16px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+// a 24 px tall hit area around the 16 px segment (pointer target size)
+button.ipToggleBtn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -4px;
+  bottom: -4px;
+}
+button.ipToggleBtn:hover {
+  color: var(--text-color);
+}
+button.ipToggleBtnSelected {
+  background: var(--surface-color);
+  color: var(--text-color);
+}
+button.ipToggleBtn:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 1px;
+}
+
+// Refresh button (32 x 32)
+button.refreshBtn {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  padding: 0;
+  box-sizing: border-box;
+  // same border and icon colours as the pause button (block-connect.vue)
+  border: 1px solid var(--control-border, var(--surface-border));
+  border-radius: 8px;
+  // half way between the card and the neutral tint (#1D1D21 on the dark card, as in the design)
+  background: color-mix(in srgb, var(--surface-color), var(--neutral-tint));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+}
+button.refreshBtn:hover {
+  border-color: var(--accent-color);
+}
+button.refreshBtn:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+.refreshIcon {
+  stroke: var(--text-soft, var(--text-color));
+}
+button.refreshBtn:hover .refreshIcon {
+  stroke: var(--text-color);
+}
+
+.cardDivider {
+  height: 1px;
+  margin: 12px 0;
+  background: var(--surface-divider);
+}
+
+// ---------- LOCATION / PROVIDER ----------
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.infoCell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.providerCell {
+  box-sizing: border-box;
+  padding-left: 16px;
+  border-left: 1px solid var(--surface-divider);
 }
 .infoValue {
   font-size: 14px;
-  line-height: 18px;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+  color: var(--text-color);
 }
-.infoAccent {
+// long city or ISP names wrap (no ellipsis)
+.valueText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-color);
+}
+.locationValue {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+}
+.flag {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 3px; // centre on the first 20 px text line
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.infoValue.infoAccent {
   color: var(--link-color);
 }
-div.row {
-  margin-top: 4px;
-  margin-bottom: 4px;
-}
-div.leftColumn {
-  min-width: 100px;
-}
-div.descriptipn {
-  @extend .leftColumn;
-  opacity: 0.5;
-}
-button.badge {
-  @extend .noBordersBtn;
-  color: white;
-  background: transparent;
-  border-radius: 4px;
-  min-width: 45px;
-  min-height: 22px;
-}
-
-button.badge:hover {
-  opacity: 0.7;
-}
-
-button.badgeSelected {
-  background: rgba(130, 130, 130, 0.6);
-}
-
-.badgeContainer {
-  padding: 2px;
-
-  border-radius: 5px;
-  background: rgba(99, 99, 99, 0.3);
+// loading / failed: a placeholder keeps the card height
+.infoValue.noValue {
+  color: var(--text-faint);
 }
 </style>

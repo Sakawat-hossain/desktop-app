@@ -27,55 +27,66 @@
         />
       </div>
 
-      <div v-else class="flexColumn">
-        <div>
-          <ConnectBlock
-            :onChecked="switchChecked"
-            :isChecked="isConnected"
-            :isProgress="isInProgress"
-            :onPauseResume="onPauseResume"
-          />
-        </div>
+      <!--
+        Main view (B design, 556 px under the 44 px title bar):
+        hero (power button, status, speed) | cards (server, kill switch + protocol;
+        they scroll when they do not fit) | plan card pinned to the bottom.
+      -->
+      <div v-else class="flexColumn controlView">
+        <ConnectBlock
+          class="heroArea"
+          :onChecked="switchChecked"
+          :isChecked="isConnected"
+          :isProgress="isInProgress"
+          :onPauseResume="onPauseResume"
+        />
 
-        <div
-          ref="scrollArea"
-          class="scrollableColumnContainer"
-          @scroll="recalcScrollButtonVisiblity()"
-        >
-          <div v-if="isMultihopAllowed">
-            <HopButtonsBlock />
-            <div class="horizontalLine hopButtonsSeparator" />
-          </div>
-
-          <SelectedServerBlock :onShowServersPressed="onShowServersPressed" />
-
-          <div v-if="this.$store.state.settings.isMultiHop">
-            <div class="horizontalLine" />
-            <SelectedServerBlock
-              :onShowServersPressed="onShowServersPressed"
-              isExitServer="true"
-            />
-          </div>
-
-          <ConnectionDetailsBlock
-            :onShowPorts="onShowPorts"
-            :onShowWifiConfig="onShowWifiConfig"
-            :onShowFirewallConfig="onFirewallSettings"
-            :onShowAntiTrackerConfig="onAntiTrackerSettings"
-          />
-
-          <transition name="fade">
-            <button
-              title="Scroll down"
-              class="btnScrollDown"
-              v-if="isShowScrollButton"
-              v-on:click="onScrollDown()"
+        <div class="cardsArea">
+          <div class="scrollWrap">
+            <div
+              ref="scrollArea"
+              class="scrollableColumnContainer cardsScroll"
+              @scroll="recalcScrollButtonVisiblity()"
             >
-              <img src="@/assets/arrow-bottom.svg" />
-            </button>
-          </transition>
+              <div v-if="isMultihopAllowed" class="hopButtonsArea">
+                <HopButtonsBlock />
+                <div class="horizontalLine hopButtonsSeparator" />
+              </div>
+
+              <SelectedServerBlock
+                :onShowServersPressed="onShowServersPressed"
+              />
+
+              <SelectedServerBlock
+                v-if="isMultiHop"
+                :onShowServersPressed="onShowServersPressed"
+                isExitServer="true"
+              />
+
+              <ConnectionDetailsBlock
+                :onShowPorts="onShowPorts"
+                :onShowWifiConfig="onShowWifiConfig"
+                :onShowFirewallConfig="onFirewallSettings"
+                :onShowAntiTrackerConfig="onAntiTrackerSettings"
+              />
+            </div>
+
+            <!-- outside the scrolling box, so it stays at the bottom of the visible part -->
+            <transition name="fade">
+              <button
+                title="Scroll down"
+                aria-label="Scroll down"
+                class="btnScrollDown"
+                v-if="isShowScrollButton"
+                v-on:click="onScrollDown()"
+              >
+                <img src="@/assets/arrow-bottom.svg" alt="" />
+              </button>
+            </transition>
+          </div>
+
+          <PlanBar />
         </div>
-        <PlanBar />
       </div>
     </transition>
   </div>
@@ -180,10 +191,27 @@ export default {
     isMultiHop: function () {
       return this.$store.state.settings.isMultiHop;
     },
+    // needed for watcher: things that change the height of the hero or of the cards
+    // (split tunnel warning line, plan card, Wi-Fi row, the speed card hidden while paused,
+    // the IP line that wraps for a long address or city) and so the room left to the cards
+    cardsLayoutKey: function () {
+      const l = this.$store.state.location;
+      return [
+        this.$store.getters["vpnState/isInverseSplitTunnel"] === true,
+        this.$store.getters["uiState/splitTunnelMacOSIssue"] === true,
+        !!this.$store.state.account.accountStatus,
+        this.$store.state.vpnState.currentWiFiInfo?.SSID || "",
+        this.$store.getters["vpnState/isPaused"] === true,
+        l ? [l.ip_address, l.city, l.country_code, l.country].join(",") : "",
+      ].join("|");
+    },
   },
 
   watch: {
     conectionState(newValue, oldValue) {
+      // the speed card appears/disappears with the connection: the cards area changes height
+      setTimeout(() => this.recalcScrollButtonVisiblity(), 1000);
+
       // show connection failure description:
 
       // only in case of changing to DISCONNECTED
@@ -205,6 +233,9 @@ export default {
       setTimeout(() => this.recalcScrollButtonVisiblity(), 1000);
     },
     isMultiHop() {
+      setTimeout(() => this.recalcScrollButtonVisiblity(), 1000);
+    },
+    cardsLayoutKey() {
       setTimeout(() => this.recalcScrollButtonVisiblity(), 1000);
     },
   },
@@ -329,8 +360,9 @@ export default {
       const isNeedToShow = function () {
         let pixelsToTheEndScroll =
           sa.scrollHeight - (sa.clientHeight + sa.scrollTop);
-        // hide if the 'pixels to scroll' < 20
-        if (pixelsToTheEndScroll < 20) return false;
+        // The plan card sits right under the cards, so even a few hidden pixels cut
+        // the last card visibly: show the button unless (almost) nothing is hidden.
+        if (pixelsToTheEndScroll < 4) return false;
         return true;
       };
 
@@ -357,4 +389,58 @@ export default {
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
 @import "@/components/scss/constants";
+
+// Left panel (320 x 556 in the B design):
+//   hero 292 (connected) | 60 server + 8 + 98 kill switch/protocol | 8 | 72 plan | 14
+// Every card brings its own 16 px side margins (block-selected-server,
+// block-connection-details, block-plan-bar); this file owns the vertical rhythm.
+.controlView {
+  min-height: 0;
+}
+
+.heroArea {
+  flex: none;
+}
+
+.cardsArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; // plan card at the bottom
+  gap: 8px;
+}
+
+.scrollWrap {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+div.cardsScroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  gap: 8px;
+  // 3 px of room so focus rings are not clipped by the scrolling box,
+  // taken back by the negative margin (no layout cost)
+  padding: 3px 0;
+  margin: -3px 0;
+}
+// cards keep their height; the box scrolls instead
+div.cardsScroll > * {
+  flex: none;
+}
+
+// the global button is 'position: fixed' to the window bottom; here it sits at the
+// bottom of the visible cards, above the plan card
+button.btnScrollDown {
+  position: absolute;
+  bottom: 4px;
+  left: calc(50% - 12px);
+  margin: 0;
+}
 </style>
