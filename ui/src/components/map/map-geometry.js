@@ -27,6 +27,28 @@ export const MAP_PATHS = Object.freeze(
 );
 
 // ---------------------------------------------------------------------------
+// The line from the user's location 'u' to the server 's' ({ x, y }, any one unit):
+// a quadratic curve bent to one side (downwards) by 40 % of its length. The dashed
+// line, the map framing and the connection effect all use this curve.
+// Returns its control point (the middle when the two points are the same).
+export function routeControlPoint(u, s) {
+  const dx = s.x - u.x;
+  const dy = s.y - u.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const mx = (u.x + s.x) / 2;
+  const my = (u.y + s.y) / 2;
+  if (!(len > 0)) return { x: mx, y: my };
+  let nx = -dy / len;
+  let ny = dx / len;
+  if (ny < 0 || (ny === 0 && nx < 0)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  const bow = len * 0.4;
+  return { x: mx + nx * bow, y: my + ny * bow };
+}
+
+// ---------------------------------------------------------------------------
 // Path parsing (only what the map file uses: M/L/H/V/Z, absolute or relative)
 
 function parsePath(d) {

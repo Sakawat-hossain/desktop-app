@@ -95,6 +95,23 @@ export default {
   fill: var(--wm-land-servers);
 }
 
+// the connected country fades in (with the move of the map into it)
+.countryOn {
+  animation: wmCountryOn 0.9s ease-out;
+}
+@keyframes wmCountryOn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .countryOn {
+    animation: none;
+  }
+}
 .countryOnHalo {
   fill: none;
   stroke: var(--wm-on-halo);

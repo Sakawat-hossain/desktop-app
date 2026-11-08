@@ -15,6 +15,12 @@
       bubble to this root element, where the parent's @click / @wheel listeners sit.
       (No comment above the root element: the component must keep one root node.)
     -->
+    <!-- connecting: the user's outer ring breathes (an HTML ring: see .udPulse) -->
+    <span
+      v-if="kind === 'user' && pulse"
+      class="udPulse"
+      aria-hidden="true"
+    ></span>
     <svg
       v-if="kind === 'user'"
       class="userDot hit"
@@ -174,6 +180,7 @@ export default {
     // card colours: "accent" | "neutral" | "danger" (default by kind)
     tone: String,
     // connected: an expanding ripple; connecting: the rings pulse
+    // (the user's location: its outer ring breathes)
     wave: Boolean,
     pulse: Boolean,
     // accessible name of the marker group
@@ -328,11 +335,41 @@ export default {
     opacity: 0.3;
   }
 }
+// connecting: the outer ring of the user's location breathes, softly. It is drawn by
+// an HTML ring in place of the SVG one (.udOuter, same place and size): its transform
+// runs on the compositor, where a transform on an SVG shape lays it out every frame.
+.udPulse {
+  position: absolute;
+  left: -17px;
+  top: -17px;
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--mk-danger-ring);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: mkUserPulse 1.6s ease-in-out infinite;
+}
+.kind-user.pulsing .udOuter {
+  visibility: hidden;
+}
+@keyframes mkUserPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.22);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .ringWave {
     display: none;
   }
-  .pulsing .ring {
+  .pulsing .ring,
+  .udPulse {
     animation: none;
   }
 }

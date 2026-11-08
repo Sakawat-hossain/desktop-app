@@ -130,17 +130,25 @@
                 style="flex-grow: 1; text-align: center; cursor: pointer"
                 v-on:click="onVersionClick()"
               >
-                <div v-if="versionSingle" class="version">
-                  <!-- single version -->
-                  {{ versionSingle }}
-                </div>
-
-                <div v-else>
-                  <!-- daemon and UI versions different-->
-                  <div class="version">
-                    {{ versionUI }}
+                <div class="versionRow">
+                  <span class="poweredBy"
+                    >Powered by
+                    <span class="poweredBrand"
+                      >OVPN<sup class="poweredPlus">+</sup></span
+                    ></span
+                  >
+                  <div v-if="versionSingle" class="version">
+                    <!-- single version -->
+                    {{ versionSingle }}
                   </div>
-                  <div class="version">daemon {{ versionDaemon }}</div>
+
+                  <div v-else>
+                    <!-- daemon and UI versions different-->
+                    <div class="version">
+                      {{ versionUI }}
+                    </div>
+                    <div class="version">daemon {{ versionDaemon }}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -424,5 +432,31 @@ button.activeBtn {
 }
 div.version {
   color: var(--text-muted);
+}
+.versionRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 16px;
+}
+.poweredBy {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.poweredBrand {
+  color: var(--text-color);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+// the "+" of OVPN+ sits raised, as in the brand mark
+.poweredPlus {
+  color: var(--link-color);
+  font-size: 0.85em;
+  font-weight: 700;
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 1px;
 }
 </style>

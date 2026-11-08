@@ -54,8 +54,13 @@
 
       <section class="detailsCard" aria-label="Connection details">
         <transition name="fade">
+          <!-- (it comes with the move into the connected country, after the connection effect) -->
           <div
-            v-if="isConnected && !$store.getters['vpnState/isPaused']"
+            v-if="
+              isConnected &&
+              !$store.getters['vpnState/isPaused'] &&
+              !isFxHolding
+            "
             class="speedSection"
           >
             <BlockSpeedGraph />
@@ -115,6 +120,18 @@
             <path :d="routeLine.d" />
           </svg>
 
+          <!-- connecting: the gold line and the comet from the user's location to the server -->
+          <MapConnectFx
+            v-if="isMapLoaded && connectFxView"
+            :key="connectFxView.id"
+            :fxId="connectFxView.id"
+            :from="connectFxView.from"
+            :to="connectFxView.to"
+            :mode="connectFxView.mode"
+            @landed="onConnectFxLanded"
+            @done="onConnectFxDone"
+          />
+
           <!-- Location point (servers without a marker) -->
           <div
             v-show="isMapLoaded && !isZooming"
@@ -158,6 +175,7 @@
             :y="userMarker.y"
             :caption="userMarker.caption"
             :tone="userMarker.tone"
+            :pulse="userMarker.pulse"
             :title="userMarker.title"
             :countryCode="userMarker.code"
             :code="userMarker.code"
@@ -219,11 +237,13 @@ import BlockSpeedGraph from "@/components/blocks/block-speed-graph.vue";
 import MapWorld from "@/components/map/map-world.vue";
 import MapMarker from "@/components/map/map-marker.vue";
 import MapHoverTip from "@/components/map/map-hover-tip.vue";
+import MapConnectFx from "@/components/map/map-connect-fx.vue";
 import {
   MAP_WIDTH,
   MAP_HEIGHT,
   countryIndexOfLocation,
   countryBoxOfLocation,
+  routeControlPoint,
 } from "@/components/map/map-geometry";
 
 import config from "@/config";
@@ -246,6 +266,11 @@ const countryViewPart = 0.5;
 const maxCountryScale = 0.8;
 // how long the map takes to move (and zoom) to a new view
 const moveDurationMs = 600;
+// connected, after the connection effect: the move into the connected country
+// (the country fill fades in meanwhile: components/map/map-world.vue)
+const connectZoomMs = 900;
+// a new number for every connection effect (see updateConnectFx())
+let connectFxSeq = 0;
 // gap between the bottom panel ("Connection details" card) and the map bottom edge (see .bottomPanel)
 const bottomPanelGapPx = 20;
 // minimal free map height above the card to keep centred locations above it
@@ -283,18 +308,7 @@ function routeBox(u, s) {
     r: Math.max(u.x, s.x),
     b: Math.max(u.y, s.y),
   };
-  const dx = s.x - u.x;
-  const dy = s.y - u.y;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  if (!(len > 0)) return box;
-  let nx = -dy / len;
-  let ny = dx / len;
-  if (ny < 0 || (ny === 0 && nx < 0)) {
-    nx = -nx;
-    ny = -ny;
-  }
-  const bow = len * 0.4;
-  const c = { x: (u.x + s.x) / 2 + nx * bow, y: (u.y + s.y) / 2 + ny * bow };
+  const c = routeControlPoint(u, s);
   // the extreme of the quadratic curve on each axis (when it is between the ends)
   for (const axis of ["x", "y"]) {
     const den = u[axis] - 2 * c[axis] + s[axis];
@@ -331,6 +345,7 @@ export default {
     MapWorld,
     MapMarker,
     MapHoverTip,
+    MapConnectFx,
   },
   props: {
     isBlured: String,
@@ -377,6 +392,14 @@ export default {
 
     // keeps the map centred when its container changes size
     resizeObserver: null,
+
+    // The connection effect (components/map/map-connect-fx.vue), or null:
+    // { id, mode: "travel" | "land" | "leave", landed, gateway, from, to (map units) }.
+    // "land": connected, the comet is landing; the connected view waits for it.
+    connectFx: null,
+    // the system asks for less motion: no connection effect, no zoom animation on connect
+    reducedMotion: false,
+    reducedMotionQuery: null,
 
     locationsToDisplay: [
       /*{
@@ -500,9 +523,64 @@ export default {
       return Array.from(set).sort((a, b) => a - b);
     },
     // the country of the connected server: filled
+    // (after the connection effect: it fades in with the move into the country)
     connectedCountryIndex: function () {
-      if (!this.isConnected || !this.connectedLocation) return -1;
+      if (!this.isConnected || !this.connectedLocation || this.isFxHolding)
+        return -1;
       return countryIndexOfLocation(this.connectedLocation);
+    },
+
+    // ---------------- connection effect ----------------
+    // Fastest / Random server: the server is picked on connect; it is known once the
+    // daemon starts the connection to it (it reports the endpoint) or is connected.
+    isConnectTargetKnown: function () {
+      if (!this.isServerModeSelected) return true;
+      const vs = this.$store.state.vpnState;
+      if (vs.isPingingServers === true) return false;
+      return vs.remoteEndpoint != null || vs.connectionInfo != null;
+    },
+    // Connecting, the user's location and the server known: the ends of the effect
+    // (map units), else null.
+    connectFxTarget: function () {
+      if (!this.isConnecting || this.isPaused || !this.isConnectTargetKnown)
+        return null;
+      const server = this.selectedServer;
+      const from = mapUnitsPoint(this.location);
+      const to = mapUnitsPoint(server);
+      if (!from || !to) return null;
+      return { gateway: server.gateway, from, to };
+    },
+    // what the effect depends on (see updateConnectFx())
+    connectFxSignal: function () {
+      const t = this.reducedMotion ? null : this.connectFxTarget;
+      return [
+        t ? [t.gateway, t.from.x, t.from.y].join("/") : "",
+        this.isConnected ? "connected" : "",
+        this.reducedMotion ? "reduced" : "",
+      ].join("|");
+    },
+    // connected, the comet still on its way: the server is shown as "CONNECTING"
+    isFxArriving: function () {
+      const fx = this.connectFx;
+      return fx != null && fx.mode === "land" && fx.landed !== true;
+    },
+    // connected, the effect still landing: the connected view (zoom into the country,
+    // country fill, speed graph) waits for it
+    isFxHolding: function () {
+      const fx = this.connectFx;
+      return fx != null && fx.mode === "land";
+    },
+    // the effect in px of the locations layer (it follows the zoom)
+    connectFxView: function () {
+      const fx = this.connectFx;
+      if (!fx) return null;
+      const k = this.scale;
+      return {
+        id: fx.id,
+        mode: fx.mode,
+        from: { x: fx.from.x * k, y: fx.from.y * k },
+        to: { x: fx.to.x * k, y: fx.to.y * k },
+      };
     },
 
     // ---------------- markers ----------------
@@ -530,7 +608,7 @@ export default {
     },
 
     // The selected server's marker: outlined pin ("SELECTED", "CONNECTING", "PAUSED")
-    // or, when connected, the gold pin with the "CONNECTED" card.
+    // or, when connected, the gold pin with the "PROTECTED" card.
     serverMarker: function () {
       const server = this.selectedServer;
       if (!server) return null;
@@ -541,23 +619,27 @@ export default {
       let host = this.selectedHost;
       let wave = false;
       let pulse = false;
-      if (this.isConnected) {
+      // connected, the comet of the connection effect still on its way: "CONNECTING"
+      const arriving = this.isFxArriving;
+      if (this.isConnected && !arriving) {
         kind = "connected";
-        caption = "CONNECTED";
+        caption = "PROTECTED"; // the left panel says "Connected"
         state = "Connected server";
         host = this.connectedHost || host;
         wave = true;
       } else if (this.isPaused) {
         caption = "PAUSED";
         state = "Paused connection";
-      } else if (this.isInProgress) {
-        // Fastest / Random: the server is not known while the servers are being pinged
+      } else if (this.isInProgress || arriving) {
+        // Fastest / Random: the server is not known while the servers are being pinged,
+        // nor (connecting) until the daemon starts the connection to it
         if (
           this.isServerModeSelected &&
           this.$store.state.vpnState.isPingingServers === true
         )
           return null;
-        if (this.isConnecting) {
+        if (this.isConnecting && !this.isConnectTargetKnown) return null;
+        if (this.isConnecting || arriving) {
           caption = "CONNECTING";
           state = "Connecting to";
           pulse = true;
@@ -606,6 +688,8 @@ export default {
         y: p.y,
         caption: unprotected ? "UNPROTECTED" : "YOUR LOCATION",
         tone: unprotected ? "danger" : "neutral",
+        // connecting: it pulses softly
+        pulse: this.isConnecting === true,
         title,
         code,
         label: [
@@ -631,10 +715,13 @@ export default {
     },
 
     // dashed connection line: the user's location -> the selected server (quadratic curve)
+    // (connecting: the connection effect draws its gold line instead; when it fades out
+    // after a cancel, the dashed line is back under it)
     routeLine: function () {
       const u = this.userMarker;
       const s = this.serverMarker;
       if (!u || !s || this.isConnected || s.kind !== "selected") return null;
+      if (this.connectFx && this.connectFx.mode !== "leave") return null;
 
       const dx = s.x - u.x;
       const dy = s.y - u.y;
@@ -642,15 +729,9 @@ export default {
       if (len < 24) return null; // the markers overlap: no room for a line
 
       // bend the line to one side (downwards) by 40 % of its length
-      let nx = -dy / len;
-      let ny = dx / len;
-      if (ny < 0 || (ny === 0 && nx < 0)) {
-        nx = -nx;
-        ny = -ny;
-      }
-      const bow = len * 0.4;
-      const cx = (u.x + s.x) / 2 + nx * bow;
-      const cy = (u.y + s.y) / 2 + ny * bow;
+      const c = routeControlPoint(u, s);
+      const cx = c.x;
+      const cy = c.y;
 
       const pad = 3;
       const left = Math.floor(Math.min(u.x, s.x, cx) - pad);
@@ -701,6 +782,9 @@ export default {
 
     // the map is inline: it is ready now
     this.mapLoaded();
+    // mounted while connecting ("Show map", or the app opened while it connects):
+    // the connection effect starts now (its watcher only sees later changes)
+    this.updateConnectFx();
 
     // The map can mount before the window has grown to its full width ("Show map"):
     // keep the point in the middle of the map in the middle when the size changes.
@@ -719,12 +803,27 @@ export default {
 
   created: function () {
     window.addEventListener("mousemove", this.windowsmousemove);
+    if (typeof window.matchMedia === "function") {
+      const q = window.matchMedia("(prefers-reduced-motion: reduce)");
+      this.reducedMotion = q.matches === true;
+      if (typeof q.addEventListener === "function") {
+        q.addEventListener("change", this.onReducedMotionChange);
+        this.reducedMotionQuery = q;
+      }
+    }
   },
   unmounted: function () {
     window.removeEventListener("mousemove", this.windowsmousemove);
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
+    }
+    if (this.reducedMotionQuery) {
+      this.reducedMotionQuery.removeEventListener(
+        "change",
+        this.onReducedMotionChange,
+      );
+      this.reducedMotionQuery = null;
     }
   },
 
@@ -740,8 +839,22 @@ export default {
       // connected (or connected to another server): the server, zoomed in on its country.
       // Not when the server list is refreshed (the daemon does it every hour): the same
       // server then comes as a new object, and the user's zoom and drag must stay.
-      if (newVal && (!oldVal || oldVal.gateway !== newVal.gateway))
-        this.showState(newVal);
+      // (Less motion: straight to that view, once the details card has its new size.
+      // After a connection effect, the view waits for it: see showStateNow().)
+      if (newVal && (!oldVal || oldVal.gateway !== newVal.gateway)) {
+        if (this.reducedMotion)
+          this.whenLaidOut(false, () => this.showStateNow(true));
+        else this.showState(newVal);
+      }
+    },
+    // connecting: start, land or end the connection effect
+    connectFxSignal() {
+      this.updateConnectFx();
+    },
+    // Fastest / Random: the server became known while connecting: frame it with the
+    // user's location
+    isConnectTargetKnown(known) {
+      if (known && this.isConnecting) this.showState(this.selectedServer);
     },
 
     selectedServer(newVal, oldVal) {
@@ -787,9 +900,10 @@ export default {
     },
     isConnected() {
       // AR-APP-11 - When VPN status is changed to connected, map should be positioned to the coordinates of selected gateway
+      // (less motion: without animation; after a connection effect it waits for it)
       if (this.isConnected) {
         setTimeout(() => {
-          this.centerCurrentLocation();
+          this.centerCurrentLocation(this.reducedMotion);
         }, 300);
       }
     },
@@ -929,6 +1043,74 @@ export default {
           message: `Failed to resume: ` + e,
         });
       }
+    },
+    // ================= CONNECTION EFFECT ====================
+    // Starts, lands or ends the connection effect (components/map/map-connect-fx.vue):
+    // - connecting, the user's location and the server known: the gold line draws itself
+    //   from the user to the server and a comet runs along it;
+    // - connected to that server: the comet lands at the pin, a ripple bursts, the line
+    //   fades; then the map moves into the connected country (endConnectFx());
+    // - anything else (cancelled, failed, disconnected): it fades out, and the map takes
+    //   the disconnected view as before.
+    updateConnectFx() {
+      const fx = this.connectFx;
+      const t = this.reducedMotion ? null : this.connectFxTarget;
+      if (t) {
+        if (
+          !fx ||
+          fx.mode !== "travel" ||
+          fx.gateway !== t.gateway ||
+          fx.from.x !== t.from.x ||
+          fx.from.y !== t.from.y
+        ) {
+          this.connectFx = {
+            id: ++connectFxSeq,
+            mode: "travel",
+            landed: false,
+            gateway: t.gateway,
+            from: t.from,
+            to: t.to,
+          };
+        }
+        return;
+      }
+      if (!fx) return;
+      // less motion asked for meanwhile: no effect (the view it held is shown at once)
+      if (this.reducedMotion) {
+        this.endConnectFx(false);
+        return;
+      }
+      if (fx.mode === "travel") {
+        const server = this.connectedLocation;
+        fx.mode = server && server.gateway === fx.gateway ? "land" : "leave";
+      } else if (fx.mode === "land" && !this.isConnected) {
+        fx.mode = "leave";
+      }
+    },
+    // The effect ended (or was dropped). When it held the connected view back: the map
+    // moves into the connected country now (at once with less motion or a hidden window).
+    endConnectFx(animate) {
+      const fx = this.connectFx;
+      if (!fx) return;
+      this.connectFx = null;
+      if (fx.mode !== "land" || !this.isConnected) return;
+      const jump = animate !== true || this.reducedMotion || document.hidden;
+      // after the DOM update: the details card gets its speed graph now
+      this.whenLaidOut(false, () => this.showStateNow(jump, connectZoomMs));
+      // and once more a little later, as after a connect without the effect (isConnected
+      // watcher): the card can still change its height (the VPN location arrives)
+      setTimeout(() => this.centerCurrentLocation(this.reducedMotion), 300);
+    },
+    // the comet is at the server: it is shown connected (gold pin, "CONNECTED" card)
+    onConnectFxLanded(id) {
+      if (this.connectFx && this.connectFx.id === id)
+        this.connectFx.landed = true;
+    },
+    onConnectFxDone(id) {
+      if (this.connectFx && this.connectFx.id === id) this.endConnectFx(true);
+    },
+    onReducedMotionChange(e) {
+      this.reducedMotion = e.matches === true;
     },
     // ================= MOUSE ====================
     mouseDown(e) {
@@ -1183,6 +1365,10 @@ export default {
     showState(server, noAnimation) {
       this.whenLaidOut(noAnimation, () => {
         if (this.showStateNow(noAnimation)) return;
+        // connecting to a Fastest / Random server that is not known yet (no marker):
+        // the user's location stays in the middle
+        if (this.isConnecting && !this.serverMarker && this.location)
+          server = this.location;
         this.centerServerNow(
           server,
           noAnimation,
@@ -1193,13 +1379,16 @@ export default {
     },
     // Connected: the connected server, zoomed in on its country. Not connected: the user's
     // location and the selected server together. Returns false when neither applies.
-    showStateNow(noAnimation) {
+    // 'durationMs': how long the move takes (default: moveDurationMs).
+    showStateNow(noAnimation, durationMs) {
       if (this.isConnected) {
+        // the connection effect is landing: the map moves in when it ends (endConnectFx())
+        if (this.isFxHolding) return true;
         const server = this.selectedServer;
         const p = mapUnitsPoint(server);
         if (!p) return false;
         this.startView(
-          { scale: this.getCountryScale(server), x: p.x, y: p.y },
+          { scale: this.getCountryScale(server), x: p.x, y: p.y, durationMs },
           noAnimation,
         );
         return true;
@@ -1383,8 +1572,9 @@ export default {
       return Math.round(scale * 1000) / 1000;
     },
 
-    // Moves the map to 'target': { scale, x, y, isPopupRequired }. (x, y) is a point in map
-    // units placed in the middle of the visible map; the zoom changes along the way.
+    // Moves the map to 'target': { scale, x, y, isPopupRequired, durationMs }. (x, y) is a
+    // point in map units placed in the middle of the visible map; the zoom changes along
+    // the way, in 'durationMs' (default: moveDurationMs).
     startView(target, noAnimation) {
       if (!this.combinedDiv || !this.canvas || !target) return;
       const centerY = this.getVisibleMapCenterY();
@@ -1449,7 +1639,9 @@ export default {
           Math.abs(to.x - from.x) * to.scale <= 1 &&
           Math.abs(to.y - from.y) * to.scale <= 1
             ? 0
-            : moveDurationMs,
+            : target.durationMs > 0
+              ? target.durationMs
+              : moveDurationMs,
       };
       this.scrollingTick(this.scrollTo);
     },

@@ -200,7 +200,7 @@ export default {
     statusTitle: function () {
       if (this.isProgress) return this.isDisconnecting ? "Disconnecting…" : "Connecting…";
       if (this.isCanResume) return "Paused";
-      if (this.isOn) return "Protected";
+      if (this.isOn) return "Connected"; // "PROTECTED" is shown on the map card
       return "Not protected";
     },
     statusLineClass: function () {
@@ -213,7 +213,7 @@ export default {
         return this.isDisconnecting ? "Closing the tunnel" : "Setting up a secure tunnel";
       if (this.isOn) {
         const elapsed = this.connectedForText;
-        return elapsed ? `Connected · ${elapsed}` : "Connected";
+        return elapsed ? `Your IP is hidden · ${elapsed}` : "Your IP is hidden";
       }
       return "Your real IP is visible";
     },
