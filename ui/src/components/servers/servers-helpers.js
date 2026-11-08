@@ -87,6 +87,66 @@ export function EntryPing(entry, funcGetPing, isPremiumAccount) {
   return best;
 }
 
+// lowest latency of several entries (a card's locations), or null
+export function BestPing(entries, funcGetPing, isPremiumAccount) {
+  let best = null;
+  for (const e of entries || []) {
+    const p = EntryPing(e, funcGetPing, isPremiumAccount);
+    if (p != null && (best == null || p < best)) best = p;
+  }
+  return best;
+}
+
+// hosts of a location, lowest latency first; unknown and locked ones after
+// them; equal ones keep the panel's order
+export function HostsByPing(server, funcGetPing, isPremiumAccount) {
+  const hosts = (server && server.hosts) || [];
+  return hosts
+    .map((h, i) => ({ h, i, p: HostPing(h, funcGetPing, isPremiumAccount) }))
+    .sort((a, b) => {
+      if (a.p != null && b.p != null && a.p !== b.p) return a.p - b.p;
+      if (a.p != null && b.p == null) return -1;
+      if (a.p == null && b.p != null) return 1;
+      return a.i - b.i;
+    })
+    .map((x) => x.h);
+}
+
+// ---------- cards ----------
+// A list item is a card holding one or more locations: one card per country
+// when sorted by Country, else one per location (Favorites: one per entry).
+
+// the country of a location: its name, else its code, else "Other"
+export function CountryName(entry) {
+  const loc = EntryLocation(entry);
+  const name = loc ? String(loc.country || "").trim() : "";
+  if (name) return name;
+  const cc = loc ? String(loc.country_code || "").trim() : "";
+  return cc || "Other";
+}
+
+// "Free" | "Premium" | "Mixed" of several entries together
+export function CombinedTier(entries) {
+  let free = false;
+  let premium = false;
+  for (const e of entries || []) {
+    const t = EntryTier(e);
+    if (t !== "Premium") free = true;
+    if (t !== "Free") premium = true;
+  }
+  if (free && premium) return "Mixed";
+  return premium ? "Premium" : "Free";
+}
+
+// the tier read out ("Free and Premium" for a Mixed one)
+export function TierText(tier) {
+  return tier === "Mixed" ? "Free and Premium" : tier || "";
+}
+
+export function ServersCountText(n) {
+  return n === 1 ? "1 server" : `${n} servers`;
+}
+
 // same thresholds as controls/control-server-ping.vue
 export function PingQualityName(ms) {
   if (ms == null) return null;
@@ -108,6 +168,10 @@ export function UpgradeKeyForEntry(entry) {
 }
 export function UpgradeKeyForHost(server, host) {
   return "H:" + GatewayId(server ? server.gateway : "") + ":" + HostId(host);
+}
+// a country header whose locations are all locked
+export function UpgradeKeyForCard(cardKey) {
+  return "K:" + cardKey;
 }
 
 // DOM id of the upgrade card opened by the row with this key

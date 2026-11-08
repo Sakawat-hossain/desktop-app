@@ -61,3 +61,32 @@ export function HostDisplayName(server, host) {
   const city = (server && server.city) || "Server";
   return hosts.length > 1 && i >= 0 ? `${city} #${i + 1}` : city;
 }
+
+// short name of a host for the server list, where the city is already shown:
+// "Dhaka District #2" => "Server 2"; a name that starts with the city => the rest
+// ("Dhaka District Fast" => "Fast"); any other name as it is; no name =>
+// "Server <n>" (n: the host's place in the panel's list, from 1)
+export function HostShortName(server, host) {
+  const name = host && typeof host.name === "string" ? host.name.trim() : "";
+  if (!name) {
+    const hosts = (server && server.hosts) || [];
+    const i = hosts.indexOf(host);
+    return `Server ${i >= 0 ? i + 1 : 1}`;
+  }
+
+  const num = name.match(/#\s*(\d+)$/);
+  if (num) return `Server ${num[1]}`;
+
+  const city = server && typeof server.city === "string" ? server.city.trim() : "";
+  if (city && name.toLowerCase().startsWith(city.toLowerCase())) {
+    const after = name.slice(city.length);
+    // the city as a whole word only ("Dhaka" is not the start of "Dhakaside")
+    if (!/^[\p{L}\p{N}]/u.test(after)) {
+      const rest = after.replace(/^[\s\-\u2013\u2014:,\u00b7|]+/, "").trim();
+      // only a number is left ("Frankfurt-2"): "Server 2"
+      if (/^\d+$/.test(rest)) return `Server ${rest}`;
+      if (rest) return rest;
+    }
+  }
+  return name;
+}

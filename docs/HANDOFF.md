@@ -111,6 +111,7 @@ $env:ELECTRON_BUILDER_BINARIES_MIRROR = "https://npmmirror.com/mirrors/electron-
    - Connect and keep the tunnel up for 2 minutes or more.
 2. If China still drops the tunnel: try TCP 443 (`OPENVPN_PROTO=tcp`, `OPENVPN_PORT=443`) or obfs4. The IVPN daemon already supports obfsproxy; the server side is not built yet.
 3. UI design: **done in source** (2026-11-07). Gold `#FFB000` accent from the logo on a black/white base, light and dark mode. WireGuard, Multi-Hop and AntiTracker are hidden and forced off through `config.Features` in `ui/src/config.js`. Not yet seen in a real installed build.
+   - Server list = design R6B "Country card" (2026-11-09), chosen by the owner: one card per country when sorted by Country (one per location in the other sorts); header = country name first + the lowest ping; city rows; host rows named "Server N" (`HostShortName`), sorted by ping. Code: `ui/src/components/servers/servers-card.vue`, `servers-city-row.vue`, `servers-host-row.vue`. Design files are on the design canvas (Round 6 B).
 4. Panel on a domain with HTTPS. Then rebuild the app with `-PanelHost domain` and redeploy the servers (the auth URL changes). aaPanel/CyberPanel are fine; they need `proc_open` enabled, sshpass, a Supervisor queue worker and cron.
 5. Not done yet:
    - code signing

@@ -1,52 +1,60 @@
 <template>
-  <!-- Shown under a locked row after a Free account clicks it -->
-  <div
-    :id="cardId"
-    class="upgradeCard"
-    :class="{ standalone: standalone }"
-    role="group"
-    :aria-labelledby="cardId + '-t'"
-  >
-    <div class="upTop">
-      <span class="upTile" aria-hidden="true">
-        <svg class="crown" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M2.8 7.6 7.7 11.6 12 4.6 16.3 11.6 21.2 7.6 19.3 17.2H4.7z" />
-          <rect x="4.7" y="18.8" width="14.6" height="2.6" rx="1.3" />
-        </svg>
-      </span>
-      <span class="upTexts">
-        <span :id="cardId + '-t'" class="upTitle">{{ name }} is Premium</span>
-        <span class="upText"
-          >Upgrade on your account page to connect. Free locations still
-          work.</span
+  <div class="upSlot" :style="{ paddingLeft: indent + 'px' }">
+    <!-- Shown inside a server card, under the locked row a Free account
+         clicked. The card's tree lines that go on past it are drawn on its left. -->
+    <span
+      v-for="x of lines"
+      :key="x"
+      class="upLine"
+      :style="{ left: x + 'px' }"
+      aria-hidden="true"
+    ></span>
+    <div
+      :id="cardId"
+      class="upgradeCard"
+      role="group"
+      :aria-labelledby="cardId + '-t'"
+    >
+      <div class="upTop">
+        <span class="upTile" aria-hidden="true">
+          <svg class="crown" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2.8 7.6 7.7 11.6 12 4.6 16.3 11.6 21.2 7.6 19.3 17.2H4.7z" />
+            <rect x="4.7" y="18.8" width="14.6" height="2.6" rx="1.3" />
+          </svg>
+        </span>
+        <span class="upTexts">
+          <span :id="cardId + '-t'" class="upTitle">{{ name }} is Premium</span>
+          <span class="upText"
+            >Upgrade on your account page to connect. Free locations still
+            work.</span
+          >
+        </span>
+      </div>
+      <div class="upActions">
+        <button
+          type="button"
+          class="upBtn upPrimary"
+          title="Opens your account page"
+          v-on:click="onUpgrade"
         >
-      </span>
-    </div>
-    <div class="upActions">
-      <button
-        ref="upgradeBtn"
-        type="button"
-        class="upBtn upPrimary"
-        title="Opens your account page"
-        v-on:click="onUpgrade"
-      >
-        Upgrade
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke-width="2.2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M5 12h14M13 6l6 6-6 6" />
-        </svg>
-      </button>
-      <button type="button" class="upBtn upSecondary" v-on:click="$emit('dismiss')">
-        Not now
-      </button>
+          Upgrade
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </button>
+        <button type="button" class="upBtn upSecondary" v-on:click="$emit('dismiss')">
+          Not now
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -59,10 +67,12 @@ export default {
   props: {
     // id for aria-controls on the row that opened the card
     cardId: { type: String, required: true },
-    // "<City> is Premium" (or the host name)
+    // "<Name> is Premium"
     name: String,
-    // a card of its own (under a host row) instead of the lower part of a location box
-    standalone: Boolean,
+    // left edge of the card inside the server card (px)
+    indent: { type: Number, default: 9 },
+    // x (px) of the server card's tree lines that pass the card on its left
+    lines: { type: Array, default: () => [] },
   },
   methods: {
     onUpgrade() {
@@ -70,27 +80,36 @@ export default {
       if (sender && sender.shellOpenExternal)
         sender.shellOpenExternal(config.URLAccount);
     },
-    focus() {
-      if (this.$refs.upgradeBtn) this.$refs.upgradeBtn.focus();
-    },
   },
 };
 </script>
 
 <style scoped lang="scss">
+.upSlot {
+  position: relative;
+  box-sizing: border-box;
+  padding: 2px 8px 8px 9px;
+}
+// a tree line of the server card (same as the rows' 1 px lines at x + 0.5)
+.upLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  display: block;
+  background: var(--srv-tree-line, #d4d4d8);
+}
+
 .upgradeCard {
   box-sizing: border-box;
   padding: 12px;
-  border-top: 1px solid var(--surface-border);
+  border: 1px solid var(--accent-ring);
+  border-radius: 10px;
+  background: var(--background-color);
   display: flex;
   flex-direction: column;
   gap: 10px;
   text-align: left;
-}
-.upgradeCard.standalone {
-  border: 1px solid var(--accent-ring);
-  border-radius: 10px;
-  background: var(--surface-color);
 }
 
 .upTop {
@@ -146,6 +165,7 @@ export default {
   height: 32px;
   box-sizing: border-box;
   margin: 0;
+  scroll-margin: 8px; // focus scrolls the button into view with its ring
   border-radius: 8px;
   font-size: 12.5px;
   line-height: 16px;

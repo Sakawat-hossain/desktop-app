@@ -257,44 +257,49 @@
                 </button>
               </div>
 
-              <div v-else class="rows">
-                <template v-for="item of listItems" :key="item.key">
+              <!-- Fastest server settings: switches that exclude locations -->
+              <div v-else-if="isFastestServerConfig" class="rows">
+                <template v-for="item of fastestItems" :key="item.key">
                   <div
                     v-if="item.isGroup"
                     class="groupHead"
-                    :class="{ groupHeadFlat: isFastestServerConfig }"
                     role="heading"
                     aria-level="3"
                   >
                     <span class="groupTitle">{{ item.title }}</span>
                     <span class="groupLine" aria-hidden="true"></span>
                   </div>
-
-                  <!-- Fastest server settings: switches that exclude locations -->
                   <FastestRow
-                    v-else-if="isFastestServerConfig"
+                    v-else
                     :server="item.server"
                     :isOn="!isSvrExcludedFomFastest(item.server)"
                     v-on:toggle="configFastestSvrClicked"
                   />
-
-                  <LocationRow
-                    v-else
-                    :entry="item.server"
-                    :isExitServer="isExitServer"
-                    :isSelected="isEntrySelected(item.server)"
-                    :selectedHostId="selectedHostIdFor(item.server)"
-                    :canExpand="isServerHostsExpanded(item.server) !== undefined"
-                    :isExpanded="isServerHostsExpanded(item.server) === true"
-                    :upgradeKey="upgradeKey"
-                    v-on:select="onServerSelected"
-                    v-on:select-host="onServerHostSelected"
-                    v-on:toggle-expand="onServerExpandClick"
-                    v-on:favorite="favoriteClicked"
-                    v-on:toggle-upgrade="onToggleUpgrade"
-                    v-on:close-upgrade="onCloseUpgrade"
-                  />
                 </template>
+              </div>
+
+              <!-- cards: a country (sorted by Country), a location, or a favourite -->
+              <div v-else class="rows cards">
+                <ServerCard
+                  v-for="card of cards"
+                  :key="card.key"
+                  :card="card"
+                  :isExitServer="isExitServer"
+                  :hostsEnabled="isHostsListOn"
+                  :isOpen="isCardOpen(card)"
+                  :openGateways="openGateways"
+                  :markedGateway="markedGateway"
+                  :chosenHostId="chosenHostId"
+                  :upgradeKey="upgradeKey"
+                  v-on:select="onServerSelected"
+                  v-on:select-host="onServerHostSelected"
+                  v-on:toggle-card="onToggleCard"
+                  v-on:toggle-hosts="onToggleHosts"
+                  v-on:favorite="favoriteClicked"
+                  v-on:favorite-many="favoriteManyClicked"
+                  v-on:toggle-upgrade="onToggleUpgrade"
+                  v-on:close-upgrade="onCloseUpgrade"
+                />
               </div>
             </section>
           </template>
@@ -335,25 +340,23 @@
 
 <script>
 const sender = window.ipcSender;
-import LocationRow from "@/components/servers/servers-location-row.vue";
+import ServerCard from "@/components/servers/servers-card.vue";
 import FastestRow from "@/components/servers/servers-fastest-row.vue";
 import SortMenu from "@/components/servers/servers-sort-menu.vue";
 import { enumValueName, getDistanceFromLatLonInKm } from "@/helpers/helpers";
-import {
-  CheckIsInaccessibleServer,
-  CheckAndNotifyInaccessibleServer,
-} from "@/helpers/helpers_servers";
+import { CheckAndNotifyInaccessibleServer } from "@/helpers/helpers_servers";
 import {
   IsHostLocked,
   IsServerLocked,
   HostDisplayName,
-  HostId,
+  HostShortName,
 } from "@/helpers/helpers_premium";
 import {
   GatewayId,
   EntryLocation,
   EntryPing,
   IsEntryLocked,
+  CountryName,
   UpgradeKeyForEntry,
   UpgradeKeyForHost,
   UpgradeCardDomId,
@@ -370,7 +373,7 @@ export default {
     "onRandomServer",
   ],
   components: {
-    LocationRow,
+    ServerCard,
     FastestRow,
     SortMenu,
   },
@@ -380,25 +383,35 @@ export default {
       isFastestServerConfig: false,
       isShowScrollButton: false,
       expandedGateways: [], // list of server.gateway strings (list of gateways which is expanded to show server hosts)
+      // keys of the open country cards
+      openCards: [],
+      // while the search box has text: what the user opened / closed (card key
+      // or gateway => open); the search's own opening is in isCardOpen / isHostsOpen
+      searchCardToggles: new Map(),
+      searchHostToggles: new Map(),
       // key of the open upgrade card (Free account clicked a locked row); one at a time
       upgradeKey: null,
     };
   },
   created() {
-    // the selected location opens with its hosts shown when the user chose a host of it
-    // (not when the app picked the host for a Free account: "...HostIsAuto")
-    const settings = this.$store.state.settings;
-    const isAutoHost = this.isExit
-      ? settings.serverExitHostIsAuto === true
-      : settings.serverEntryHostIsAuto === true;
+    // the card of the selected location opens; a card with that one location
+    // also shows its hosts, and so does the location of a host the user chose
+    // (not one the app picked for a Free account: "...HostIsAuto")
     const sel = this.markedServer;
-    if (sel && this.markedHostId && !isAutoHost) {
-      const svr = (this.servers || []).find(
-        (s) => s && GatewayId(s.gateway) === GatewayId(sel.gateway),
-      );
-      if (svr && this.isServerHostsExpanded(svr) === false)
-        this.expandedGateways.push(svr.gateway);
-    }
+    if (!sel) return;
+    const svr = (this.servers || []).find(
+      (s) => s && GatewayId(s.gateway) === GatewayId(sel.gateway),
+    );
+    if (!svr) return;
+    const country = CountryName(svr);
+    this.openCards.push("C:" + country, "L:" + svr.gateway);
+    // the locations the card shows (a multi-hop list leaves the other server out)
+    const shown = this.isFavoritesView ? this.servers : this.filteredServers;
+    const isOneLocationCard =
+      this.sortTypeStr !== "Country" ||
+      shown.filter((s) => s && CountryName(s) === country).length === 1;
+    if ((isOneLocationCard || this.chosenHostId) && this.canExpandHosts(svr))
+      this.expandedGateways.push(svr.gateway);
   },
   mounted() {
     this.recalcScrollButtonVisiblity();
@@ -417,10 +430,23 @@ export default {
     this.resizeObserver = null;
   },
   watch: {
-    filter() {
+    filter(newVal, oldVal) {
       this.upgradeKey = null;
+      // the search is cleared: the cards are as before it; a new, unrelated
+      // text (not typed on from the old one or cut from it) starts afresh, so
+      // what the user closed for the old text does not hide the new matches
+      const n = (newVal || "").trim().toLowerCase();
+      const o = (oldVal || "").trim().toLowerCase();
+      if (!n || (!n.includes(o) && !o.includes(n))) {
+        this.searchCardToggles = new Map();
+        this.searchHostToggles = new Map();
+      }
     },
     isFavoritesView() {
+      this.upgradeKey = null;
+    },
+    // the header keys of the upgrade cards exist only in one sort
+    sortTypeStr() {
       this.upgradeKey = null;
     },
   },
@@ -506,6 +532,45 @@ export default {
         : settings.serverEntryHostId;
       return id ? String(id).split(".")[0] : null;
     },
+    // the app picked the host (a Free account), the user did not choose it
+    isAutoHost: function () {
+      const settings = this.$store.state.settings;
+      return this.isExit
+        ? settings.serverExitHostIsAuto === true
+        : settings.serverEntryHostIsAuto === true;
+    },
+    markedGateway: function () {
+      return this.markedServer ? GatewayId(this.markedServer.gateway) : "";
+    },
+    // id of the host the user chose of the marked location
+    chosenHostId: function () {
+      return this.markedHostId && !this.isAutoHost ? this.markedHostId : "";
+    },
+    // the cards may show host rows (the "show hosts" setting, All servers list)
+    isHostsListOn: function () {
+      return (
+        this.$store.state.settings.showHosts === true &&
+        this.isFastestServerConfig === false &&
+        this.isFavoritesView !== true
+      );
+    },
+
+    filterText: function () {
+      return this.filter.trim().toLowerCase();
+    },
+    // the locations (or favourites) the list is made of
+    sourceServers: function () {
+      if (this.isFavoritesView) return this.favorites;
+      return this.servers || [];
+    },
+    // while searching: what each entry matched (gateway => { country, city, host })
+    searchMatches: function () {
+      const ret = new Map();
+      const f = this.filterText;
+      if (!f) return ret;
+      for (const s of this.sourceServers) if (s) ret.set(s.gateway, this.matchOf(s, f));
+      return ret;
+    },
 
     filteredServers: function () {
       let store = this.$store;
@@ -584,33 +649,22 @@ export default {
         return null;
       }
 
-      let servers = this.servers || [];
-      if (this.isFavoritesView) servers = this.favorites;
-
       let svrToSkip = serverToSkip.bind(this)();
 
-      let filter = this.filter.trim().toLowerCase();
-      const has = (v) => !!v && String(v).toLowerCase().includes(filter);
-      let filtered = servers.filter((s) => {
+      const matches = this.searchMatches;
+      let filtered = this.sourceServers.filter((s) => {
         if (!s) return false;
         if (s.gateway === svrToSkip?.gateway) return false;
-        if (!filter) return true;
-        if (s.favHost) {
-          // favourite host: its display name (and, as before, its hostname)
-          if (has(HostDisplayName(EntryLocation(s), s.favHost))) return true;
-          if (has(s.favHost.hostname)) return true;
-        } else if (Array.isArray(s.hosts)) {
-          // a location also matches by the display name of one of its hosts
-          if (s.hosts.some((h) => h && has(HostDisplayName(s, h)))) return true;
-        }
-        return has(s.city) || has(s.country) || has(s.country_code);
+        if (!this.filterText) return true;
+        const m = matches.get(s.gateway);
+        return !!m && (m.country || m.city || m.host);
       });
 
       return filtered.slice().sort(compare);
     },
 
-    // rows of the list: country headers (sorted by Country) + entries
-    listItems: function () {
+    // Fastest server settings rows: country headers (sorted by Country) + locations
+    fastestItems: function () {
       const grouped = this.sortTypeStr === "Country";
       const ret = [];
       let lastGroup = null;
@@ -626,6 +680,72 @@ export default {
         ret.push({ isGroup: false, key: s.gateway, server: s });
       }
       return ret;
+    },
+
+    // number of locations of each country in the whole server list
+    countryLocationCounts: function () {
+      const ret = new Map();
+      for (const s of this.servers || []) {
+        if (!s) continue;
+        const c = CountryName(s);
+        ret.set(c, (ret.get(c) || 0) + 1);
+      }
+      return ret;
+    },
+
+    // Cards of the All servers / Favorites lists, in the order of filteredServers:
+    // one per country when sorted by Country, else one per location; one per
+    // entry in Favorites. lineCity: the city a one-line card names after the
+    // country (its country has other locations; never "Hong Kong · Hong Kong")
+    cards: function () {
+      const lineCity = (e) => {
+        const loc = EntryLocation(e) || e;
+        const city = String(loc.city || "").trim();
+        const country = CountryName(loc);
+        if (!city || city.toLowerCase() === country.toLowerCase()) return "";
+        return (this.countryLocationCounts.get(country) || 0) > 1 ? city : "";
+      };
+      const single = (kind, prefix) => (e) => ({
+        key: prefix + e.gateway,
+        kind,
+        country: CountryName(e),
+        lineCity: lineCity(e),
+        locations: [e],
+      });
+
+      const list = this.filteredServers;
+      if (this.isFavoritesView) return list.map(single("favorite", "F:"));
+      if (this.sortTypeStr !== "Country") return list.map(single("location", "L:"));
+
+      const byCountry = new Map();
+      for (const s of list) {
+        const country = CountryName(s);
+        let c = byCountry.get(country);
+        if (!c) {
+          c = {
+            key: "C:" + country,
+            kind: "country",
+            country,
+            lineCity: "",
+            locations: [],
+            // all the country's locations (a search may show only some)
+            countryLocations: this.countryLocationCounts.get(country) || 0,
+          };
+          byCountry.set(country, c);
+        }
+        c.locations.push(s);
+      }
+      const ret = [...byCountry.values()];
+      for (const c of ret) if (c.locations.length === 1) c.lineCity = lineCity(c.locations[0]);
+      return ret;
+    },
+
+    // gateways of the locations whose hosts are shown
+    openGateways: function () {
+      if (!this.isHostsListOn) return [];
+      return this.filteredServers
+        .filter((s) => this.isHostsOpen(s))
+        .map((s) => s.gateway);
     },
 
     listTitle: function () {
@@ -651,61 +771,100 @@ export default {
       if (this.onBack != null) this.onBack();
     },
 
-    // undefined: the location has no expand chevron
-    isServerHostsExpanded: function (server) {
-      if (
-        this.$store.state.settings.showHosts !== true ||
-        this.isFastestServerConfig === true ||
-        this.$store.state.uiState.serversFavoriteView === true
-      )
-        return undefined; //hide expand button
-      // a favourite host, or a location with a single host: nothing to expand
-      if (!server || server.favHost) return undefined;
-      if (!Array.isArray(server.hosts) || server.hosts.length < 2)
-        return undefined;
-      return this.expandedGateways.includes(server.gateway);
+    // What the search text f matches in a list entry: its country (name or
+    // code), its city, or one of its hosts (display name or short name; a
+    // favourite host also by its hostname, as before)
+    matchOf: function (s, f) {
+      const has = (v) => !!v && String(v).toLowerCase().includes(f);
+      const r = {
+        country: has(s.country) || has(s.country_code),
+        city: has(s.city),
+        host: false,
+      };
+      if (s.favHost) {
+        const loc = EntryLocation(s);
+        r.host =
+          has(HostDisplayName(loc, s.favHost)) ||
+          has(HostShortName(loc, s.favHost)) ||
+          has(s.favHost.hostname);
+      } else if (Array.isArray(s.hosts)) {
+        r.host = s.hosts.some(
+          (h) => h && (has(HostDisplayName(s, h)) || has(HostShortName(s, h))),
+        );
+      }
+      return r;
     },
-    onServerExpandClick: function (server) {
-      var index = this.expandedGateways.indexOf(server.gateway);
-      if (index === -1) this.expandedGateways.push(server.gateway);
-      else this.expandedGateways.splice(index, 1);
 
+    // ---------- open / closed cards and hosts ----------
+    // the location has host rows to show (the setting; 2 hosts or more)
+    canExpandHosts: function (server) {
+      if (this.$store.state.settings.showHosts !== true) return false;
+      if (!server || server.favHost) return false;
+      return Array.isArray(server.hosts) && server.hosts.length >= 2;
+    },
+    // While searching, a card that matched by a city or a host name (not by its
+    // country) is open, and a location that matched by a host name shows its
+    // hosts; what the user opens or closes meanwhile is kept until the search
+    // is cleared
+    isCardOpen: function (card) {
+      const k = card.key;
+      if (this.filterText && this.searchCardToggles.has(k))
+        return this.searchCardToggles.get(k);
+      if (this.openCards.includes(k)) return true;
+      if (!this.filterText) return false;
+      return card.locations.some((l) => {
+        const m = this.searchMatches.get(l.gateway);
+        return !!m && !m.country && (m.city || m.host);
+      });
+    },
+    isHostsOpen: function (server) {
+      if (!this.canExpandHosts(server)) return false;
+      const gw = server.gateway;
+      if (this.filterText && this.searchHostToggles.has(gw))
+        return this.searchHostToggles.get(gw);
+      if (this.expandedGateways.includes(gw)) return true;
+      if (!this.filterText) return false;
+      const m = this.searchMatches.get(gw);
+      return !!m && m.host && !m.city && !m.country;
+    },
+    setHostsOpen: function (server, isOpen) {
+      const gw = server.gateway;
+      if (this.filterText) {
+        this.searchHostToggles.set(gw, isOpen);
+        return;
+      }
+      const has = this.expandedGateways.includes(gw);
+      if (isOpen && !has) this.expandedGateways.push(gw);
+      else if (!isOpen && has)
+        this.expandedGateways = this.expandedGateways.filter((g) => g !== gw);
+    },
+    onToggleCard: function (card) {
+      const isOpen = !this.isCardOpen(card);
+      const k = card.key;
+      if (this.filterText) this.searchCardToggles.set(k, isOpen);
+      else if (isOpen) this.openCards.push(k);
+      else this.openCards = this.openCards.filter((c) => c !== k);
+
+      // a card with one location opens with its hosts shown
+      if (isOpen && card.locations.length === 1) {
+        const loc = card.locations[0];
+        if (this.canExpandHosts(loc) && !this.isHostsOpen(loc))
+          this.setHostsOpen(loc, true);
+      }
+      this.afterListChange();
+    },
+    onToggleHosts: function (server) {
+      this.setHostsOpen(server, !this.isHostsOpen(server));
+      this.afterListChange();
+    },
+    afterListChange: function () {
       setTimeout(() => {
         this.recalcScrollButtonVisiblity();
       }, 0);
     },
 
-    // the row is the selected / connected location (or favourite host)
-    isEntrySelected: function (entry) {
-      const sel = this.markedServer;
-      if (!sel || !entry) return false;
-      if (entry.favHost) {
-        const parent = entry.favHostParentServerObj;
-        return (
-          !!parent &&
-          GatewayId(parent.gateway) === GatewayId(sel.gateway) &&
-          !!this.markedHostId &&
-          HostId(entry.favHost) === this.markedHostId
-        );
-      }
-      return GatewayId(entry.gateway) === GatewayId(sel.gateway);
-    },
-    selectedHostIdFor: function (entry) {
-      if (!entry || entry.favHost) return null;
-      if (!this.isEntrySelected(entry)) return null;
-      return this.markedHostId || null;
-    },
-
     checkAndNotifyInaccessibleServer: async function (server, host = null) {
       return CheckAndNotifyInaccessibleServer(this.isExitServer, server, host);
-    },
-    // isInaccessibleServer returns:
-    // - null if server is acceptble
-    // - object { sameGateway: true } - servers have same gateway
-    // - object { sameCountry: true } - servers are from same country (only if this.$store.state.settings.multihopWarnSelectSameCountries === true)
-    // - objext { sameISP: true }     - servers are operated by same ISP (only if this.$store.state.settings.multihopWarnSelectSameISPs === true)
-    isInaccessibleServer: function (server, host = null) {
-      return CheckIsInaccessibleServer(this.isExitServer, server, host);
     },
 
     onServerSelected: async function (server) {
@@ -795,31 +954,10 @@ export default {
 
       if (!host) {
         // favorite SERVER
-        let gatewayId = server.gateway.split(".")[0]; // only gateway ID in use for serversFavoriteList ("us-tx.wg.ivpn.net" => "us-tx")
-        let favorites = settings.serversFavoriteList.slice();
-
-        if (!favorites.includes(gatewayId)) {
-          console.log(`Adding favorite location ${gatewayId}`);
-          favorites.push(gatewayId);
-        } else {
-          console.log(`Removing favorite location ${gatewayId}`);
-          favorites = favorites.filter((gw) => gw != gatewayId);
-
-          // If the server has only one host AND this host is in favorites -> remove host also
-          // Reason: If server and it's single host are in favorites - we showing only server to user.
-          // (refer to "settings/favoriteServersAndHosts" for details)
-          if (server.hosts.length == 1) {
-            // remove HOST also
-            let hostDns = server.hosts[0].dns_name;
-            let favHostsDns = settings.hostsFavoriteListDnsNames.slice();
-            if (favHostsDns.includes(hostDns)) {
-              console.log(`Removing favorite host ${hostDns} (single host)`);
-              favHostsDns = favHostsDns.filter((hn) => hn != hostDns);
-              store.dispatch("settings/hostsFavoriteListDnsNames", favHostsDns);
-            }
-          }
-        }
-        store.dispatch("settings/serversFavoriteList", favorites);
+        const isFavorite = settings.serversFavoriteList.includes(
+          GatewayId(server.gateway),
+        );
+        this.setLocationsFavorite([server], !isFavorite);
       } else if (host.hostname) {
         // favorite HOST
         let favHostsDns = settings.hostsFavoriteListDnsNames.slice();
@@ -836,6 +974,48 @@ export default {
         }
         store.dispatch("settings/hostsFavoriteListDnsNames", favHostsDns);
       }
+    },
+    // the star of a country card with several locations: all of them become
+    // favourites, or (when all already are) none of them
+    favoriteManyClicked: function (evt, servers) {
+      if (evt) evt.stopPropagation();
+      const list = (servers || []).filter((s) => s && s.gateway);
+      if (!list.length) return;
+      const favs = this.$store.state.settings.serversFavoriteList;
+      const isAll = list.every((s) => favs.includes(GatewayId(s.gateway)));
+      this.setLocationsFavorite(list, !isAll);
+    },
+    setLocationsFavorite: function (servers, isAdd) {
+      const settings = this.$store.state.settings;
+      const store = this.$store;
+      // only gateway ID in use for serversFavoriteList ("us-tx.wg.ivpn.net" => "us-tx")
+      const ids = servers.map((s) => GatewayId(s.gateway)).filter((id) => !!id);
+      let favorites = settings.serversFavoriteList.slice();
+
+      if (isAdd) {
+        for (const id of ids) {
+          if (favorites.includes(id)) continue;
+          console.log(`Adding favorite location ${id}`);
+          favorites.push(id);
+        }
+      } else {
+        console.log(`Removing favorite location(s) ${ids.join(", ")}`);
+        favorites = favorites.filter((gw) => !ids.includes(gw));
+
+        // If the server has only one host AND this host is in favorites -> remove host also
+        // Reason: If server and it's single host are in favorites - we showing only server to user.
+        // (refer to "settings/favoriteServersAndHosts" for details)
+        const singleHostsDns = servers
+          .filter((s) => Array.isArray(s.hosts) && s.hosts.length == 1)
+          .map((s) => s.hosts[0].dns_name);
+        let favHostsDns = settings.hostsFavoriteListDnsNames.slice();
+        if (singleHostsDns.some((d) => favHostsDns.includes(d))) {
+          console.log(`Removing favorite host(s) of single-host locations`);
+          favHostsDns = favHostsDns.filter((hn) => !singleHostsDns.includes(hn));
+          store.dispatch("settings/hostsFavoriteListDnsNames", favHostsDns);
+        }
+      }
+      store.dispatch("settings/serversFavoriteList", favorites);
     },
     configFastestSvrClicked(server, event) {
       if (server == null || server.gateway == null) return;
@@ -1010,7 +1190,7 @@ export default {
   --srv-moderate: #9a4a06; // latency 100-299 ms
   --srv-bar-off: #d4d4d8;
   --srv-free-border: #bfe3cb;
-  --srv-tree-line: #d4d4d8;
+  --srv-tree-line: #c4c4cc;
   --srv-flag-outline: rgba(0, 0, 0, 0.12);
   --srv-thumb: #d4d4d8;
   --srv-menu-shadow: 0.14;
@@ -1019,7 +1199,7 @@ export default {
     --srv-moderate: #fdba74;
     --srv-bar-off: #3a3a40;
     --srv-free-border: #1f3d2a;
-    --srv-tree-line: #3a3a40;
+    --srv-tree-line: #52525b;
     --srv-flag-outline: rgba(255, 255, 255, 0.18);
     --srv-thumb: #2e2e34;
     --srv-menu-shadow: 0.55;
@@ -1449,18 +1629,18 @@ button:focus {
   display: flex;
   flex-direction: column;
 }
-// the text starts where the flags of the rows start (27 px)
+.rows.cards {
+  gap: 6px;
+}
+// Fastest server settings: the text starts where the flags of the rows start
 .groupHead {
   height: 22px;
   flex: none;
   box-sizing: border-box;
-  padding: 0 10px 0 27px;
+  padding: 0 10px 0 11px;
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.groupHead.groupHeadFlat {
-  padding-left: 11px;
 }
 .groupTitle {
   min-width: 0;
