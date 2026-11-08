@@ -12,20 +12,32 @@
       Stroke widths are screen pixels at every zoom (non-scaling strokes).
       (No comment above the root element: the component must keep one root node.)
     -->
+    <!-- faint graticule on the ocean: a line every 10 degrees -->
+    <path class="graticule" :d="graticule" />
+
     <!-- soft halo along the coasts: a wide, faint stroke under the land -->
     <g class="coastHalo">
       <path v-for="(d, i) in paths" :key="'h' + i" :d="d" />
     </g>
 
-    <!-- land; countries that have servers are a little lighter -->
+    <!-- land -->
     <g class="land">
-      <path
-        v-for="(d, i) in paths"
-        :key="'l' + i"
-        :d="d"
-        :class="{ hasServers: serverCountrySet[i] === true }"
-      />
+      <path v-for="(d, i) in paths" :key="'l' + i" :d="d" />
     </g>
+
+    <!-- countries that have servers: a lighter land with a brighter border (drawn over
+         the borders of their neighbours) -->
+    <g class="landServers">
+      <path v-for="i in serverCountries" :key="'s' + i" :d="paths[i]" />
+    </g>
+
+    <!-- the user's own country while not protected: softly tinted in the danger colour -->
+    <path
+      v-if="userPath"
+      :key="'u' + userCountryIndex"
+      class="userCountry"
+      :d="userPath"
+    />
 
     <!-- the country of the connected server: filled, brighter border, soft halo -->
     <g v-if="highlightPath" class="countryOn">
@@ -36,12 +48,19 @@
 </template>
 
 <script>
-import { MAP_PATHS, MAP_WIDTH, MAP_HEIGHT } from "./map-geometry";
+import {
+  MAP_PATHS,
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  GRATICULE_PATH,
+} from "./map-geometry";
 
 export default {
   props: {
     // index (in MAP_PATHS) of the country to highlight, -1 for none
     highlightIndex: { type: Number, default: -1 },
+    // index (in MAP_PATHS) of the user's own country to tint, -1 for none
+    userCountryIndex: { type: Number, default: -1 },
     // indexes (in MAP_PATHS) of the countries that have servers
     serverCountries: { type: Array, default: () => [] },
   },
@@ -49,18 +68,18 @@ export default {
     // plain (not reactive) constants: 176 long path strings
     return {
       paths: MAP_PATHS,
+      graticule: GRATICULE_PATH,
       viewBox: `0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`,
     };
   },
   computed: {
-    serverCountrySet() {
-      const set = {};
-      for (const i of this.serverCountries) set[i] = true;
-      return set;
-    },
     highlightPath() {
       if (this.highlightIndex < 0) return null;
       return MAP_PATHS[this.highlightIndex] || null;
+    },
+    userPath() {
+      if (this.userCountryIndex < 0) return null;
+      return MAP_PATHS[this.userCountryIndex] || null;
     },
   },
 };
@@ -80,10 +99,16 @@ export default {
   stroke-linejoin: round;
 }
 
+.graticule {
+  fill: none;
+  stroke: var(--wm-grid);
+  stroke-width: 1px;
+}
+
 .coastHalo path {
   fill: none;
   stroke: var(--wm-coast-halo);
-  stroke-width: 7px;
+  stroke-width: 9px;
 }
 
 .land path {
@@ -91,8 +116,18 @@ export default {
   stroke: var(--wm-border);
   stroke-width: 1px;
 }
-.land path.hasServers {
+.landServers path {
   fill: var(--wm-land-servers);
+  stroke: var(--wm-border-servers);
+  stroke-width: 1px;
+}
+
+// the user's country fades in with its marker (the location arrives after a disconnect)
+.userCountry {
+  fill: var(--wm-user-fill);
+  stroke: var(--wm-user-border);
+  stroke-width: 1px;
+  animation: wmCountryOn 0.6s ease-out;
 }
 
 // the connected country fades in (with the move of the map into it)
@@ -108,6 +143,7 @@ export default {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .userCountry,
   .countryOn {
     animation: none;
   }

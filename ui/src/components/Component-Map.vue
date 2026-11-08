@@ -71,7 +71,8 @@
       </section>
     </div>
     <!-- Map -->
-    <div class="mapcontainer" ref="combined">
+    <!-- (any scroll of the map, a drag, a move or a zoom, places the user's card again) -->
+    <div class="mapcontainer" ref="combined" @scroll.passive="onMapScroll">
       <canvas
         class="canvas"
         ref="canvas"
@@ -89,12 +90,17 @@
         v-bind:class="{ blured: isBlured === 'true' }"
       ></canvas>
 
-      <!-- dot-pattern ocean (background) with the inline world map on it -->
+      <!-- a soft vignette along the edges of the visible map (over the land, under the
+           server dots and markers); it stays in place while the map moves -->
+      <div class="mapVignette" aria-hidden="true"></div>
+
+      <!-- the ocean (background) with the inline world map on it -->
       <div class="bigMapArea" ref="bigMapArea">
         <MapWorld
           ref="mapWorld"
           class="map"
           :highlightIndex="connectedCountryIndex"
+          :userCountryIndex="userCountryIndex"
           :serverCountries="serverCountryIndexes"
         />
 
@@ -167,7 +173,7 @@
             {{ l.width > 0 ? l.location.city : "" }}
           </div>
 
-          <!-- the user's own location -->
+          <!-- the user's own location: the only label there (no popup, no server name) -->
           <MapMarker
             v-if="isMapLoaded && userMarker"
             kind="user"
@@ -179,7 +185,11 @@
             :title="userMarker.title"
             :countryCode="userMarker.code"
             :code="userMarker.code"
+            :note="userMarker.note"
+            :cardSide="userCardSide"
+            :cardDy="userCardDy"
             :label="userMarker.label"
+            @cardSize="onUserCardSize"
             @click="locationClicked(userMarker.location)"
             @wheel="wheel"
           />
@@ -244,6 +254,7 @@ import {
   countryIndexOfLocation,
   countryBoxOfLocation,
   routeControlPoint,
+  USER_PIN,
 } from "@/components/map/map-geometry";
 
 import config from "@/config";
@@ -275,9 +286,14 @@ let connectFxSeq = 0;
 const bottomPanelGapPx = 20;
 // minimal free map height above the card to keep centred locations above it
 const minVisibleMapHeightPx = 80;
-// plain server dot: an 8 px dot in a 4 px ring (see .mapLocationPoint);
-// 5 px is the radius other names keep clear of
-const PointRadius = 5;
+// plain server dot: a 6 px gold dot in a 2 px gap and a 1 px ring (see .mapLocationPoint);
+// 5.5 px is the radius other names keep clear of (a name starts 10 px from the point)
+const PointRadius = 5.5;
+// the user's label card stays this far inside the visible map (its edges, and the top
+// of the "Connection details" card); it flips to the left of the pin to stay in view
+const userCardMarginPx = 8;
+// and this far from the selected server's pin and card (it flips or slides to keep clear)
+const userCardAvoidGapPx = 4;
 
 // Free / Premium mark: the host's own when a host is known, else the location's
 function tierOf(server, host) {
@@ -337,6 +353,96 @@ function clampCentre(c, lo, hi, half, margin) {
   return Math.min(Math.max(c, min), max);
 }
 
+// Where the user's label card goes beside its pin: { side: "right" | "left", dy }, dy
+// being how far (px) it slides down (+) or up (-) from its place centred on the pin head
+// (the stem stays on it: at most USER_PIN.stemInset from its top and bottom edges).
+// 'u': the user's point; 'card': its size ({ w, h }); 'avoid': rects ({ l, t, r, b }, the
+// space of 'u') it keeps clear of: the server marker's pin and card; 'view': the rect it
+// stays inside, 'margin' px within its edges, or null (framing: anywhere).
+// On the right of the pin when it can be, else on the left, slid as little as possible;
+// when nothing is clear, the place in the view that covers the least of 'avoid'; when
+// nothing fits the view, on the side with the more room, slid into it as far as it goes.
+function userCardPlacement(u, card, avoid, view, margin) {
+  const gap = USER_PIN.cardGap;
+  const pad = userCardAvoidGapPx;
+  const reach = Math.max(0, Math.floor(card.h / 2 - USER_PIN.stemInset));
+  const top0 = u.y + USER_PIN.headY - card.h / 2;
+  // the slide that keeps it in the view (the top edge first)
+  let dyView = 0;
+  if (view) {
+    if (top0 + card.h > view.b - margin)
+      dyView = view.b - margin - (top0 + card.h);
+    if (top0 + dyView < view.t + margin) dyView = view.t + margin - top0;
+  }
+  dyView = Math.round(Math.min(reach, Math.max(-reach, dyView)));
+  const inView = (t) =>
+    !view ||
+    (t >= view.t + margin - 0.5 && t + card.h <= view.b - margin + 0.5);
+  // the part of 'avoid' (each rect 'pad' px larger) the card covers
+  const covered = (l, t) => {
+    let area = 0;
+    for (const a of avoid) {
+      const w = Math.min(l + card.w, a.r + pad) - Math.max(l, a.l - pad);
+      const h = Math.min(t + card.h, a.b + pad) - Math.max(t, a.t - pad);
+      if (w > 0 && h > 0) area += w * h;
+    }
+    return area;
+  };
+  // the slides to try: into the view, just clear of each rect, the farthest ones
+  const dys = new Set([dyView, reach, -reach]);
+  for (const a of avoid) {
+    dys.add(Math.ceil(a.b + pad - top0)); // under it
+    dys.add(Math.floor(a.t - pad - card.h - top0)); // over it
+  }
+  let best = null;
+  ["right", "left"].forEach((side, sideIndex) => {
+    const l = side === "left" ? u.x - gap - card.w : u.x + gap;
+    if (
+      view &&
+      (l < view.l + margin - 0.5 || l + card.w > view.r - margin + 0.5)
+    )
+      return;
+    for (const dy of dys) {
+      if (Math.abs(dy) > reach || !inView(top0 + dy)) continue;
+      const c = {
+        side,
+        dy,
+        cost: covered(l, top0 + dy),
+        sideIndex,
+        off: Math.abs(dy - dyView),
+      };
+      if (
+        !best ||
+        c.cost < best.cost ||
+        (c.cost === best.cost &&
+          (c.sideIndex < best.sideIndex ||
+            (c.sideIndex === best.sideIndex && c.off < best.off)))
+      )
+        best = c;
+    }
+  });
+  if (best) return { side: best.side, dy: best.dy };
+  // no place in the view: the side with the more room
+  const roomRight = view.r - margin - (u.x + gap + card.w);
+  const roomLeft = u.x - gap - card.w - (view.l + margin);
+  const side = roomRight >= 0 || roomRight >= roomLeft ? "right" : "left";
+  return { side, dy: dyView };
+}
+
+// Room ({ l, t, r, b }, px around its point) the user's marker takes: the pin and its
+// ripples, and the card where 'placement' (userCardPlacement()) puts it.
+function userMarkerExtent(card, placement) {
+  const gap = USER_PIN.cardGap;
+  const l = placement.side === "left" ? -gap - card.w : gap;
+  const t = USER_PIN.headY - card.h / 2 + placement.dy;
+  return {
+    l: Math.min(-USER_PIN.ringRx, l),
+    t: Math.min(USER_PIN.top, t),
+    r: Math.max(USER_PIN.ringRx, l + card.w),
+    b: Math.max(USER_PIN.ringRy, t + card.h),
+  };
+}
+
 export default {
   components: {
     popupControl,
@@ -389,6 +495,11 @@ export default {
 
     // the server under the mouse: { location, x, y, left, top } (px in the locations layer)
     hoverTip: null,
+
+    // where the user's label card is: on the "right" or "left" of the pin, and how far
+    // (px) it slides down (+) or up (-) to stay in the visible map (see placeUserCard())
+    userCardSide: "right",
+    userCardDy: 0,
 
     // keeps the map centred when its container changes size
     resizeObserver: null,
@@ -528,6 +639,11 @@ export default {
       if (!this.isConnected || !this.connectedLocation || this.isFxHolding)
         return -1;
       return countryIndexOfLocation(this.connectedLocation);
+    },
+    // the user's own country while not protected: softly tinted (the same lookup)
+    userCountryIndex: function () {
+      if (this.isConnected || !this.userMarker) return -1;
+      return countryIndexOfLocation(this.location);
     },
 
     // ---------------- connection effect ----------------
@@ -672,33 +788,38 @@ export default {
       };
     },
 
-    // The user's own location (known only while not connected): "UNPROTECTED"
+    // The user's own location (known only while not connected): red pin, "NOT PROTECTED"
+    // card with the place and "Your real IP is visible" (connecting: "Connecting...")
     userMarker: function () {
       const l = this.location;
       if (!l) return null;
       const p = this.getLocationXYCoordinates(l);
       if (!p) return null;
       const unprotected = !this.isConnected;
+      // connecting: a ripple breathes, the card says so
+      const connecting = unprotected && this.isConnecting === true;
       const code = String(l.country_code || "").toUpperCase();
       const title = l.city || l.country || "Your location";
+      let note = null;
+      if (connecting) note = "Connecting\u2026";
+      else if (unprotected) note = "Your real IP is visible";
+      const place =
+        "Your location: " + [title, code].filter((v) => !!v).join(", ");
+      let state = "";
+      if (connecting) state = ". Not protected yet, connecting";
+      else if (unprotected) state = ". Not protected, your real IP is visible";
       return {
         location: l,
         kind: "user",
         x: p.x,
         y: p.y,
-        caption: unprotected ? "UNPROTECTED" : "YOUR LOCATION",
+        caption: unprotected ? "NOT PROTECTED" : "YOUR LOCATION",
         tone: unprotected ? "danger" : "neutral",
-        // connecting: it pulses softly
-        pulse: this.isConnecting === true,
+        pulse: connecting,
         title,
         code,
-        label: [
-          "Your location: " + title,
-          code,
-          unprotected ? "unprotected" : "",
-        ]
-          .filter((v) => !!v)
-          .join(", "),
+        note,
+        label: place + state,
       };
     },
 
@@ -707,7 +828,7 @@ export default {
       const u = this.userMarker;
       const s = this.serverMarker;
       return [
-        u ? u.caption + "/" + u.title + "/" + u.code : "",
+        u ? [u.caption, u.title, u.code, u.note].join("/") : "",
         s
           ? [s.kind, s.caption, s.title, s.code, s.tier, s.location.gateway].join("/")
           : "",
@@ -791,6 +912,10 @@ export default {
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(() => this.onMapResize());
       this.resizeObserver.observe(this.combinedDiv);
+      // the bottom panel grows (a notice, the location rows once loaded): the user's
+      // card keeps above it
+      this.panelObserver = new ResizeObserver(() => this.placeUserCard(true));
+      this.panelObserver.observe(this.$refs.bottomPanel);
     }
 
     // names are measured with the UI font: measure again once it is loaded
@@ -802,6 +927,16 @@ export default {
   },
 
   created: function () {
+    // not reactive: the size ({ w, h }, px) of the user's label card, as laid out
+    // (map-marker.vue reports it), or null before it is shown; the card ({ key, w, h })
+    // the last framed view was made for, and that view ({ scale, left, top }) once the
+    // map is there, or null (see onUserCardSize()); the selected server's card width
+    // ({ key, w }: see userCardObstacles()); the observer of the bottom panel
+    this.userCardSize = null;
+    this.framedCard = null;
+    this.framedView = null;
+    this.serverCardW = null;
+    this.panelObserver = null;
     window.addEventListener("mousemove", this.windowsmousemove);
     if (typeof window.matchMedia === "function") {
       const q = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -817,6 +952,10 @@ export default {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
+    }
+    if (this.panelObserver) {
+      this.panelObserver.disconnect();
+      this.panelObserver = null;
     }
     if (this.reducedMotionQuery) {
       this.reducedMotionQuery.removeEventListener(
@@ -1305,6 +1444,138 @@ export default {
       if (this.hoverTip && l && this.hoverTip.location === l.location)
         this.hoverTip = null;
     },
+    // ================= THE USER'S CARD ====================
+    // The map scrolled (dragged, moved to a view, zoomed): the user's card keeps in view.
+    onMapScroll() {
+      this.placeUserCard(true);
+    },
+    // the user's card was laid out with a new size: the room it takes changed
+    onUserCardSize(size) {
+      if (!size || !(size.w > 0) || !(size.h > 0)) return;
+      const old = this.userCardSize;
+      if (old && old.w === size.w && old.h === size.h) return;
+      this.userCardSize = { w: size.w, h: size.h };
+      // (places the card too)
+      this.updateCities();
+      // The view was framed for this card with another size of it (an estimate before
+      // it was laid out, or before the UI font was loaded) and has not moved since:
+      // frame it again with the real size, at once (the first time, this comes before
+      // the card is painted). Not when the card changed (a new place, "Connecting..."):
+      // the watchers of those frame the view again themselves.
+      const f = this.framedCard;
+      if (
+        f &&
+        (f.w !== size.w || f.h !== size.h) &&
+        this.userMarker &&
+        f.key === this.userCardKey(this.userMarker) &&
+        !this.isConnected &&
+        !this.isInProgress &&
+        !this.connectFx &&
+        !this.scrollTo &&
+        !this.moving &&
+        this.isAtFramedView()
+      )
+        this.showStateNow(true);
+    },
+    // what the user's card shows (its size follows it)
+    userCardKey(m) {
+      return [m.caption, m.title, m.code, m.note].join("/");
+    },
+    // size ({ w, h }, px) of the user's card: as laid out, or estimated before it is shown
+    userCardBox(m) {
+      if (this.userCardSize) return this.userCardSize;
+      return { w: this.estimateCardWidth(m), h: m.note ? 74 : 54 };
+    },
+    // the map is still at the last framed view (not moved, dragged or zoomed since)
+    isAtFramedView() {
+      const f = this.framedView;
+      if (!f || !this.combinedDiv) return false;
+      return (
+        f.scale === this.scale &&
+        Math.abs(f.left - this.combinedDiv.scrollLeft) <= 1 &&
+        Math.abs(f.top - this.combinedDiv.scrollTop) <= 1
+      );
+    },
+    // The rects ({ l, t, r, b }, px in the locations layer) the user's card keeps clear
+    // of: the server marker's pin and card (the areas other names keep clear of:
+    // markerAreas()), its point at (sx, sy) (default: where it is now).
+    userCardObstacles(sx, sy) {
+      const s = this.serverMarker;
+      if (!s || !this.hiddenTestTextMeter) return [];
+      // its card width is measured once for what it shows (not on every scroll)
+      const key = [s.kind, s.caption, s.title, s.code, s.tier].join("/");
+      if (!this.serverCardW || this.serverCardW.key !== key)
+        this.serverCardW = { key, w: this.estimateCardWidth(s) };
+      const at = { ...s, x: sx == null ? s.x : sx, y: sy == null ? s.y : sy };
+      const rects = [];
+      for (const a of this.markerAreas(at, this.serverCardW.w)) {
+        const r = a.pointRadius;
+        rects.push({ l: a.x - r, t: a.y - r, r: a.x + r, b: a.y + r });
+        rects.push({
+          l: a.left,
+          t: a.top,
+          r: a.left + a.width,
+          b: a.top + a.height,
+        });
+      }
+      return rects;
+    },
+    // Where the user's card goes (userCardPlacement()): on the right of the pin, or on
+    // its left when it would go past the right edge of the visible map or cover the
+    // selected server's pin or card; centred on the pin head, slid up or down (with the
+    // stem still on it) to stay above the "Connection details" card, below the top edge
+    // and clear of the server marker. 'relayout': the server names are placed again when
+    // the card changes its side or slides onto one of them (they keep clear of it).
+    placeUserCard(relayout) {
+      const u = this.userMarker;
+      if (!u || !this.combinedDiv || !this.canvas) return;
+      const card = this.userCardBox(u);
+      const left = this.combinedDiv.scrollLeft - this.mapPos.mapLeftOffset;
+      const top = this.combinedDiv.scrollTop - this.mapPos.mapTopOffset;
+      let height = this.getVisibleMapHeight();
+      // very small map: the card can cover the bottom panel (see getVisibleMapCenterY)
+      if (height < minVisibleMapHeightPx) height = this.canvas.height;
+      const view = {
+        l: left,
+        t: top,
+        r: left + this.combinedDiv.clientWidth,
+        b: top + height,
+      };
+      const p = userCardPlacement(
+        u,
+        card,
+        this.userCardObstacles(),
+        view,
+        userCardMarginPx,
+      );
+
+      if (p.side === this.userCardSide && p.dy === this.userCardDy) return;
+      const flipped = p.side !== this.userCardSide;
+      this.userCardSide = p.side;
+      this.userCardDy = p.dy;
+      if (relayout && (flipped || this.isUserCardOverNames(u, card)))
+        this.updateCities();
+    },
+    // the user's card (where it is now) covers a server name or dot placed before
+    isUserCardOverNames(u, card) {
+      const gap = USER_PIN.cardGap;
+      const l = this.userCardSide === "left" ? u.x - gap - card.w : u.x + gap;
+      const t = u.y + USER_PIN.headY - card.h / 2 + this.userCardDy;
+      const hit = (x, y, w, h) =>
+        x < l + card.w && l < x + w && y < t + card.h && t < y + h;
+      return this.locationsToDisplay.some(
+        (c) =>
+          c.marker !== true &&
+          ((c.width > 0 && hit(c.left, c.top, c.width, c.height)) ||
+            hit(
+              c.x - c.pointRadius,
+              c.y - c.pointRadius,
+              2 * c.pointRadius,
+              2 * c.pointRadius,
+            )),
+      );
+    },
+
     // keep the hover label inside the visible map (above the "Connection details" card)
     fitHoverTip() {
       const tip = this.hoverTip;
@@ -1499,8 +1770,22 @@ export default {
         h: area.height - 2 * margin,
       };
 
-      // what each marker takes around its point (px; the same at every zoom)
-      const uExt = this.markerExtent(u);
+      // What each marker takes around its point (px). The server's is the same at every
+      // zoom; the user's card goes beside its pin clear of the server marker, which is
+      // nearer at a smaller zoom (placeUserCard() puts it there too once framed).
+      const uCard = this.userCardBox(u);
+      this.framedCard = { key: this.userCardKey(u), w: uCard.w, h: uCard.h };
+      const uExtAt = (k) =>
+        userMarkerExtent(
+          uCard,
+          userCardPlacement(
+            { x: 0, y: 0 },
+            uCard,
+            this.userCardObstacles(k * (ps.x - pu.x), k * (ps.y - pu.y)),
+            null,
+            0,
+          ),
+        );
       const sExt = this.markerExtent(s);
       // the dashed line (map units: it grows with the zoom)
       const line = routeBox(pu, ps);
@@ -1514,6 +1799,7 @@ export default {
           b: k * ps.y + sExt.b,
         };
         if (onlyServer) return b;
+        const uExt = uExtAt(k);
         b.l = Math.min(b.l, k * pu.x + uExt.l, k * line.l);
         b.t = Math.min(b.t, k * pu.y + uExt.t, k * line.t);
         b.r = Math.max(b.r, k * pu.x + uExt.r, k * line.r);
@@ -1541,16 +1827,15 @@ export default {
       let cy = (scale * (pu.y + ps.y)) / 2;
       cx = clampCentre(cx, box.l, box.r, area.width / 2, margin);
       cy = clampCentre(cy, box.t, box.b, area.height / 2, margin);
-      return { scale, x: cx / scale, y: cy / scale };
+      // ('frame': once the map is there, it is the framed view: see onUserCardSize())
+      return { scale, x: cx / scale, y: cy / scale, frame: true };
     },
 
-    // Room a marker takes around its point (px): pin or dot, leader line and label card.
+    // Room a server marker takes around its point (px): pin, leader line and label card.
     // Geometry: components/map/map-marker.vue (the same as in markerAreas()).
+    // (The user's marker: userMarkerExtent().)
     markerExtent(m) {
       const cardW = this.estimateCardWidth(m);
-      if (m.kind === "user")
-        // 36 px dot; card at +20 / -25, 51 px high
-        return { l: -18, t: -25, r: 20 + cardW, b: 26 };
       // ripple rings (68 x 26 at most), card at +40 / -100
       return { l: -34, t: -100, r: 40 + cardW, b: 13 };
     },
@@ -1589,6 +1874,7 @@ export default {
           this.updateCities();
         }
         this.scrollToView(to, centerY);
+        this.framedView = target.frame === true ? this.currentView() : null;
         // Show popup for centered location
         if (target.location)
           this.showPopupForGeoLocation(target.location, target.isPopupRequired);
@@ -1606,8 +1892,10 @@ export default {
         Math.abs(a.centerY - centerY) < 0.5
       ) {
         a.isPopupRequired = target.isPopupRequired;
+        a.frame = target.frame === true;
         return;
       }
+      this.framedView = null;
 
       // hide popup (if visible)
       this.isPopupVisible = false;
@@ -1632,6 +1920,7 @@ export default {
         to,
         centerY,
         isPopupRequired: target.isPopupRequired,
+        frame: target.frame === true,
         startTimeMs: performance.now(),
         // already there: done at the first step
         durationMs:
@@ -1644,6 +1933,14 @@ export default {
               : moveDurationMs,
       };
       this.scrollingTick(this.scrollTo);
+    },
+    // the zoom and the scroll position of the map now
+    currentView() {
+      return {
+        scale: this.scale,
+        left: this.combinedDiv.scrollLeft,
+        top: this.combinedDiv.scrollTop,
+      };
     },
     // scroll so that 'view' (scale, x, y in map units) is in the middle of the visible map
     scrollToView(view, centerY) {
@@ -1697,6 +1994,7 @@ export default {
 
       if (koef >= 1) {
         this.scrollTo = null;
+        if (move.frame) this.framedView = this.currentView();
         this.endZooming();
         // Show popup for centered location
         this.showPopup(
@@ -1739,7 +2037,7 @@ export default {
       if (mapLocation == null) return;
 
       if (isPopupRequired !== true) return;
-      // the user's own location already has its UNPROTECTED card on the map: no second label
+      // the user's own location already has its NOT PROTECTED card on the map: no second label
       const own = mapLocation.location;
       if (own != null && (own === this.$store.state.location || own === this.$store.state.locationIPv6))
         return;
@@ -1888,8 +2186,11 @@ export default {
 
       // The markers have the highest priority: other names keep clear of their pins and cards.
       // (The user's location stays first: showPopup() looks the popup location up in this list.)
-      if (this.userMarker != null)
+      if (this.userMarker != null) {
+        // its card first takes its place in the view (a zoom moves the pin)
+        this.placeUserCard(false);
         cities.push(...this.markerAreas(this.userMarker));
+      }
       if (this.serverMarker != null)
         cities.push(...this.markerAreas(this.serverMarker));
 
@@ -1929,26 +2230,29 @@ export default {
     },
 
     // The areas a marker takes (its point, pin and label card), as entries of 'locationsToDisplay'.
-    // Geometry: components/map/map-marker.vue.
-    markerAreas(m) {
-      const cardW = this.estimateCardWidth(m);
-      const cardH = 51;
+    // Geometry: components/map/map-marker.vue. ('knownCardW': a server card's width, if known)
+    markerAreas(m, knownCardW) {
       if (m.kind === "user") {
-        // user location: 36 px dot, card on its right
+        // user location: the pin and its ripples (a 44 px square around the pin), and
+        // the card where it is now (see placeUserCard())
+        const card = this.userCardBox(m);
+        const gap = USER_PIN.cardGap;
         return [
           {
             location: m.location,
             marker: true,
             x: m.x,
-            y: m.y,
-            pointRadius: 18,
-            left: m.x + 20,
-            top: m.y - 25,
-            width: cardW,
-            height: cardH,
+            y: m.y - 6,
+            pointRadius: 22,
+            left: this.userCardSide === "left" ? m.x - gap - card.w : m.x + gap,
+            top: m.y + USER_PIN.headY - card.h / 2 + this.userCardDy,
+            width: card.w,
+            height: card.h,
           },
         ];
       }
+      const cardW = knownCardW > 0 ? knownCardW : this.estimateCardWidth(m);
+      const cardH = 51;
       return [
         // ripple rings + the card (up and right, at the end of the leader line)
         {
@@ -1979,6 +2283,18 @@ export default {
     // approximate width of a marker's label card (it is laid out by map-marker.vue)
     estimateCardWidth(m) {
       this.hiddenTestTextMeter.innerText = m.title || "";
+      if (m.kind === "user") {
+        // the user's card: 13 px semibold place, 10 px caption after a 12 px icon,
+        // 11 px note (after a 10 px spinner while connecting); a little generous
+        const placeW =
+          21 + 7 + Math.min(168, this.hiddenTestTextMeter.clientWidth * 1.3);
+        const captionW =
+          (m.tone === "danger" ? 12 + 5 : 0) + (m.caption || "").length * 7.6;
+        const noteW = m.note ? (m.pulse ? 15 : 0) + m.note.length * 5.4 : 0;
+        return Math.ceil(
+          2 + 20 + Math.max(placeW + (m.code ? 7 + 21 : 0), captionW, noteW),
+        );
+      }
       // the meter uses the 10.5 px name font; the card title is 12.5 px semibold
       const titleW = Math.min(168, this.hiddenTestTextMeter.clientWidth * 1.25);
       const placeW = 21 + 7 + titleW + (m.code ? 7 + 21 : 0);
@@ -2144,19 +2460,28 @@ $shadow: 0px 3px 12px rgba(var(--shadow-color-rgb), var(--shadow-opacity));
   // Map colours (light theme; dark values below). The child map components
   // (components/map/*) read the --wm-* tokens from here.
   --wm-ocean: var(--map-background-color);
-  --wm-ocean-dot: #d4d4d8;
+  // faint graticule on the ocean, and the layered vignette along the map edges
+  --wm-grid: #d8d8dd;
+  --wm-vignette: rgba(0, 0, 0, 0.018);
   --wm-coast-halo: rgba(255, 255, 255, 0.6);
+  // two-tone land: countries with servers are lighter, with a brighter border
   --wm-land: #f4f4f5;
-  --wm-land-servers: #ffffff;
   --wm-border: #d4d4d8;
+  --wm-land-servers: #ffffff;
+  --wm-border-servers: #c4c4cc;
+  // the user's own country while not protected: a soft tint of the danger colour
+  --wm-user-fill: #fcecea;
+  --wm-user-border: #efbcb7;
   --wm-on-fill: #d9f2e1;
   --wm-on-border: #16a34a;
   --wm-on-halo: rgba(22, 163, 74, 0.18);
-  --wm-dot: #71717a;
+  // server dots: gold (3:1 on the land), in a gap and a thin ring
+  --wm-dot: #ba7800;
   --wm-dot-gap: #ffffff;
-  --wm-dot-ring: #d4d4d8;
-  --wm-dot-hover: #27272a;
+  --wm-dot-ring: #ddba7a;
+  --wm-dot-hover: #a15f00;
   --wm-dot-hover-border: #ffffff;
+  --wm-dot-hover-halo: rgba(196, 127, 0, 0.18);
   --wm-name: var(--text-muted);
   // name of a server a Free account cannot use: fainter, still 4.5:1 on land and ocean
   --wm-name-locked: #62626b;
@@ -2170,20 +2495,25 @@ $shadow: 0px 3px 12px rgba(var(--shadow-color-rgb), var(--shadow-opacity));
 }
 @media (prefers-color-scheme: dark) {
   #main {
-    --wm-ocean-dot: #26262c;
-    --wm-coast-halo: rgba(124, 124, 138, 0.13);
-    --wm-land: #18191e;
-    --wm-land-servers: #24252c;
-    --wm-border: #2c2d34;
+    --wm-grid: #1b1b21;
+    --wm-vignette: rgba(0, 0, 0, 0.07);
+    --wm-coast-halo: rgba(138, 138, 153, 0.06);
+    --wm-land: #17181d;
+    --wm-border: #2b2c33;
+    --wm-land-servers: #1f2129;
+    --wm-border-servers: #3a3c47;
+    --wm-user-fill: #21171a;
+    --wm-user-border: #57292e;
     --wm-on-fill: #14261b;
     --wm-on-border: #86efac;
     --wm-on-halo: rgba(134, 239, 172, 0.2);
-    --wm-dot: #a1a1aa;
-    --wm-dot-gap: #1d1d21;
-    --wm-dot-ring: #3a3a42;
-    --wm-dot-hover: #f4f4f5;
+    --wm-dot: #ffb000;
+    --wm-dot-gap: #0b0b0d;
+    --wm-dot-ring: #6b4e12;
+    --wm-dot-hover: #ffc94d;
     --wm-dot-hover-border: #0b0b0d;
-    --wm-name: #a1a1aa;
+    --wm-dot-hover-halo: rgba(255, 176, 0, 0.18);
+    --wm-name: #b4b4bc;
     --wm-name-locked: #8e8e96;
     --wm-name-halo: #0b0b0d;
     --wm-route: #ffb000;
@@ -2216,15 +2546,27 @@ $shadow: 0px 3px 12px rgba(var(--shadow-color-rgb), var(--shadow-opacity));
   filter: blur(7px);
   backdrop-filter: blur(5px);
 }
-// the ocean: a fine dot pattern that moves with the map
+// the ocean (the graticule on it is drawn with the map: components/map/map-world.vue)
 .bigMapArea {
   position: relative;
   background-color: var(--wm-ocean);
-  background-image: radial-gradient(
-    var(--wm-ocean-dot) 1.2px,
-    transparent 1.3px
-  );
-  background-size: 14px 14px;
+}
+// the vignette: five bands of the same faint shade, each narrower than the last
+// (7 to 44 px from the edges), not a gradient wash; over the land, under the locations
+.mapVignette {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 44px var(--wm-vignette),
+    inset 0 0 0 32px var(--wm-vignette),
+    inset 0 0 0 22px var(--wm-vignette),
+    inset 0 0 0 14px var(--wm-vignette),
+    inset 0 0 0 7px var(--wm-vignette);
 }
 .map {
   position: relative;
@@ -2410,30 +2752,32 @@ div.trialWillExpire button {
   margin-top: -14px;
   display: block;
 }
+// a 6 px gold dot in a 2 px gap (the border) and a 1 px ring
 .mapLocationPoint::before {
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
   box-sizing: border-box;
-  width: 8px;
-  height: 8px;
-  margin-left: -4px;
-  margin-top: -4px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  margin-top: -5px;
+  border: 2px solid var(--wm-dot-gap);
   border-radius: 50%;
   background: var(--wm-dot);
-  box-shadow:
-    0 0 0 3px var(--wm-dot-gap),
-    0 0 0 4px var(--wm-dot-ring);
+  box-shadow: 0 0 0 1px var(--wm-dot-ring);
 }
 .mapLocationPointHovered::before {
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  margin-top: -6px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
   background: var(--wm-dot-hover);
-  border: 2px solid var(--wm-dot-hover-border);
-  box-shadow: 0 0 0 3px var(--wm-dot-ring);
+  border-color: var(--wm-dot-hover-border);
+  box-shadow:
+    0 0 0 1px var(--wm-dot-ring),
+    0 0 0 4px var(--wm-dot-hover-halo);
 }
 // a server a Free account cannot use (a click opens the "<City> is Premium" prompt)
 .mapLocationLocked {

@@ -26,6 +26,44 @@ export const MAP_PATHS = Object.freeze(
   Array.from(worldMapSvg.matchAll(/<path\b[^>]*?\sd="([^"]+)"/g), (m) => m[1]),
 );
 
+// The graticule, drawn faintly under the land (map-world.vue): a meridian every 10
+// degrees of longitude across the whole map, and a parallel every 10 degrees of
+// latitude from 80 S to 80 N. One path, in map units.
+export const GRATICULE_PATH = (() => {
+  const f = (v) => Math.round(v * 10) / 10;
+  let d = "";
+  // the map runs from about 170 W to 170 W again (190 E): every meridian on it
+  for (let lon = -180; lon <= 190; lon += 10) {
+    const x = getCoordinatesBy(lon, 0, MAP_WIDTH, MAP_HEIGHT).x;
+    if (x >= 0 && x <= MAP_WIDTH) d += `M${f(x)} 0V${f(MAP_HEIGHT)}`;
+  }
+  for (let lat = -80; lat <= 80; lat += 10) {
+    const y = getCoordinatesBy(0, lat, MAP_WIDTH, MAP_HEIGHT).y;
+    if (y >= 0 && y <= MAP_HEIGHT) d += `M0 ${f(y)}H${f(MAP_WIDTH)}`;
+  }
+  return d;
+})();
+
+// ---------------------------------------------------------------------------
+// The user's own location marker (map-marker.vue, kind "user"), in px around its map
+// point (the tip of the pin): the map view (Component-Map.vue) places the label card
+// and keeps the room the marker takes with these.
+export const USER_PIN = Object.freeze({
+  // centre of the pin head: the stem and the middle of the card are on this line
+  headY: -16.5,
+  // top of the pin (22 x 28, its tip on the point)
+  top: -27,
+  // half the width / height of the widest ripple (the one that breathes while connecting)
+  ringRx: 34,
+  ringRy: 13,
+  // the card starts this far right of the point (or ends this far left of it, flipped);
+  // the stem runs from the pin head to it
+  cardGap: 24,
+  // the card can slide up or down (to stay in view) while the stem stays this far
+  // inside its top and bottom edges
+  stemInset: 14,
+});
+
 // ---------------------------------------------------------------------------
 // The line from the user's location 'u' to the server 's' ({ x, y }, any one unit):
 // a quadratic curve bent to one side (downwards) by 40 % of its length. The dashed
