@@ -41,6 +41,9 @@ type SessionNewRequest struct {
 	CaptchaID       string `json:"captcha_id,omitempty"`
 	Captcha         string `json:"captcha,omitempty"`
 	Confirmation2FA string `json:"confirmation,omitempty"`
+
+	// shown in the panel's device list ("DESKTOP-1AB2C (Windows)")
+	DeviceName string `json:"device_name,omitempty"`
 }
 
 // SessionDeleteRequest request to delete session

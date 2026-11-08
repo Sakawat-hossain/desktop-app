@@ -138,7 +138,7 @@ export default {
   },
   methods: {
     onAction() {
-      sender.shellOpenExternal(config.URLAccount);
+      sender.shellOpenExternal(config.URLPricing);
     },
   },
 };

@@ -147,7 +147,7 @@ export default {
     onUpgrade: function () {
       if (isValidURL(this.UpgradeToURL))
         sender.shellOpenExternal(this.UpgradeToURL);
-      else sender.shellOpenExternal(config.URLAccount);
+      else sender.shellOpenExternal(config.URLPricing);
     },
     onContactSupport: function () {
       sender.shellOpenExternal(config.URLAccount);

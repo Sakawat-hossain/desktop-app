@@ -211,7 +211,7 @@ export async function CheckAndNotifyLockedServer(server, host = null) {
     defaultId: 0,
     cancelId: 1,
     message: `${name} is Premium`,
-    detail: "Upgrade on your account page to connect. Free locations still work.",
+    detail: "Choose a Premium plan to connect. Free locations still work.",
   };
 
   try {
@@ -219,11 +219,11 @@ export async function CheckAndNotifyLockedServer(server, host = null) {
     if (IsRenderer()) {
       const sender = window.ipcSender;
       response = (await sender.showMessageBox(dialogConfig))?.response;
-      if (response === 0) sender.shellOpenExternal(config.URLAccount);
+      if (response === 0) sender.shellOpenExternal(config.URLPricing);
     } else {
       const { dialog, shell } = require("electron");
       response = (await dialog.showMessageBox(dialogConfig))?.response;
-      if (response === 0) shell.openExternal(config.URLAccount);
+      if (response === 0) shell.openExternal(config.URLPricing);
     }
   } catch (e) {
     console.error("CheckAndNotifyLockedServer:", e);

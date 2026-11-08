@@ -310,7 +310,8 @@ func (a *API) SessionNew(accountID string, password string, wgPublicKey string, 
 		ForceLogin:      forceLogin,
 		CaptchaID:       captchaID,
 		Captcha:         captcha,
-		Confirmation2FA: confirmation2FA}
+		Confirmation2FA: confirmation2FA,
+		DeviceName:      deviceName()}
 
 	data, httpResp, err := a.requestRaw(protocolTypes.IPvAny, "", _sessionNewPath, "POST", "application/json", request, 0, 0)
 	if err != nil {

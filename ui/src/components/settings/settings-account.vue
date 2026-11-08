@@ -258,10 +258,10 @@ export default {
       await sender.SessionStatus();
     },
     upgrade() {
-      sender.shellOpenExternal(config.URLAccount);
+      sender.shellOpenExternal(config.URLPricing);
     },
     addMoreTime() {
-      sender.shellOpenExternal(config.URLAccount);
+      sender.shellOpenExternal(config.URLPricing);
     },
   },
   computed: {

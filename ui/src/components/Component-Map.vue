@@ -1118,7 +1118,7 @@ export default {
       c.height = c.clientHeight;
     },
     onAccountRenew() {
-      sender.shellOpenExternal(config.URLAccount);
+      sender.shellOpenExternal(config.URLPricing);
     },
     // ================= CONNECTION ====================
     async disconnect() {

@@ -78,7 +78,7 @@ export default {
     onUpgrade() {
       const sender = window.ipcSender;
       if (sender && sender.shellOpenExternal)
-        sender.shellOpenExternal(config.URLAccount);
+        sender.shellOpenExternal(config.URLPricing);
     },
   },
 };

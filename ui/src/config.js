@@ -51,6 +51,8 @@ export default {
   URLSignUp: PanelURL + "register",
   URLAccount: PanelURL + "user/dashboard",
   URLDevices: PanelURL + "user/devices",
+  // plans: buy, renew (also after the plan ended) or upgrade
+  URLPricing: PanelURL + "pricing",
 
   MinimizedUIWidth: 320,
   MaximizedUIWidth: 800,
