@@ -1739,6 +1739,10 @@ export default {
       if (mapLocation == null) return;
 
       if (isPopupRequired !== true) return;
+      // the user's own location already has its UNPROTECTED card on the map: no second label
+      const own = mapLocation.location;
+      if (own != null && (own === this.$store.state.location || own === this.$store.state.locationIPv6))
+        return;
 
       // save selected location info: server(or current user location info)
       this.selectedPopupLocation = mapLocation.location;
