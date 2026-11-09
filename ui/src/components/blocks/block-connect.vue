@@ -120,8 +120,6 @@
         <span class="dot" />{{ statusLineText }}
       </div>
 
-      <div v-if="ipLineText" class="ipLine">{{ ipLineText }}</div>
-
       <transition name="fade">
         <button
           v-show="splitTunnelWarningText"
@@ -230,14 +228,6 @@ export default {
       const pad = (n) => String(n).padStart(2, "0");
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     },
-    ipLineText: function () {
-      const l = this.$store.state.location;
-      if (!l || !l.ip_address) return "";
-      let place = "";
-      if (l.city) place = l.country_code ? `${l.city}, ${l.country_code}` : l.city;
-      else if (l.country) place = l.country;
-      return place ? `${l.ip_address} · ${place}` : l.ip_address;
-    },
     pauseConnectionTill: function () {
       return this.$store.state.vpnState?.connectionInfo?.PausedTill;
     },
@@ -343,14 +333,15 @@ svg * {
   color: inherit;
 }
 
-// Layout budget (B design): 18 + 116 + 12 + 70 + 12 + 52 + 12 = 292 px when connected.
+// The hero starts 34 px below the title bar (the owner asked for it a little lower;
+// the IP line under the status was removed, so the cards stay about where they were).
 // The hero sits above the cards below it so its pop-up menus are not covered by them.
 .hero {
   position: relative;
   z-index: 2;
   flex: none;
   box-sizing: border-box;
-  padding: 18px 16px 12px;
+  padding: 34px 16px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -484,14 +475,6 @@ svg * {
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
-.ipLine {
-  font-size: 12.5px;
-  line-height: 18px;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
 // ---------- pause corner ----------
 .pauseCorner {
   position: absolute;
